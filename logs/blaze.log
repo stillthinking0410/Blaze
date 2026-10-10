@@ -1,0 +1,124 @@
+2026-10-10 16:09:36 [INFO] Initializing configuration.
+2026-10-10 16:09:36 [INFO] Configuration loaded successfully.
+2026-10-10 16:09:52 [INFO] Saving configuration.
+2026-10-10 16:09:52 [INFO] Configuration saved successfully.
+2026-10-10 16:09:52 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:09:55 [INFO] Saving configuration.
+2026-10-10 16:09:55 [INFO] Configuration saved successfully.
+2026-10-10 16:09:55 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:09:55 [INFO] Opening database: database/blaze.db
+2026-10-10 16:09:55 [INFO] Database initialized successfully
+2026-10-10 16:09:55 [INFO] Database initialized successfully.
+2026-10-10 16:09:55 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:09:55 [INFO] Scan completed. Files found: 1
+2026-10-10 16:09:55 [INFO] Found 1 files.
+2026-10-10 16:09:55 [DEBUG] Reading metadata: blaze-test.jpg
+2026-10-10 16:09:55 [WARNING] No capture date found for: blaze-test.jpg
+2026-10-10 16:09:55 [WARNING] Capture date missing: blaze-test.jpg
+2026-10-10 16:10:57 [INFO] Saving configuration.
+2026-10-10 16:10:57 [INFO] Configuration saved successfully.
+2026-10-10 16:10:57 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:11:03 [INFO] Saving configuration.
+2026-10-10 16:11:03 [INFO] Configuration saved successfully.
+2026-10-10 16:11:03 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:11:03 [INFO] Opening database: database/blaze.db
+2026-10-10 16:11:03 [INFO] Database initialized successfully
+2026-10-10 16:11:03 [INFO] Database initialized successfully.
+2026-10-10 16:11:03 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:11:03 [INFO] Scan completed. Files found: 1
+2026-10-10 16:11:03 [INFO] Found 1 files.
+2026-10-10 16:11:03 [DEBUG] Reading metadata: blaze-test.jpg
+2026-10-10 16:11:03 [WARNING] No capture date found for: blaze-test.jpg
+2026-10-10 16:11:03 [WARNING] Capture date missing: blaze-test.jpg
+2026-10-10 16:11:10 [INFO] Saving configuration.
+2026-10-10 16:11:10 [INFO] Configuration saved successfully.
+2026-10-10 16:11:10 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:11:10 [INFO] Opening database: database/blaze.db
+2026-10-10 16:11:10 [INFO] Database initialized successfully
+2026-10-10 16:11:10 [INFO] Database initialized successfully.
+2026-10-10 16:11:10 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:11:10 [INFO] Scan completed. Files found: 1
+2026-10-10 16:11:10 [INFO] Found 1 files.
+2026-10-10 16:11:10 [DEBUG] Reading metadata: blaze-test.jpg
+2026-10-10 16:11:10 [WARNING] No capture date found for: blaze-test.jpg
+2026-10-10 16:11:10 [WARNING] Capture date missing: blaze-test.jpg
+2026-10-10 16:11:55 [INFO] Database connection closed.
+2026-10-10 16:14:25 [INFO] Initializing configuration.
+2026-10-10 16:14:25 [INFO] Configuration loaded successfully.
+2026-10-10 16:19:43 [INFO] Initializing configuration.
+2026-10-10 16:19:43 [INFO] Configuration loaded successfully.
+2026-10-10 16:21:08 [INFO] Initializing configuration.
+2026-10-10 16:21:08 [INFO] Configuration loaded successfully.
+2026-10-10 16:21:19 [INFO] Saving configuration.
+2026-10-10 16:21:19 [INFO] Configuration saved successfully.
+2026-10-10 16:21:19 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:21:22 [INFO] Saving configuration.
+2026-10-10 16:21:22 [INFO] Configuration saved successfully.
+2026-10-10 16:21:22 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:21:22 [INFO] Opening database: database/blaze.db
+2026-10-10 16:21:22 [INFO] Database initialized successfully
+2026-10-10 16:21:22 [INFO] Database initialized successfully.
+2026-10-10 16:21:22 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:21:22 [INFO] Scan completed. Files found: 1
+2026-10-10 16:21:22 [INFO] Found 1 files.
+2026-10-10 16:21:22 [DEBUG] Reading metadata: blaze-test.jpg
+2026-10-10 16:21:23 [WARNING] No capture date found for: blaze-test.jpg
+2026-10-10 16:21:23 [INFO] Using file modification time: blaze-test.jpg
+2026-10-10 16:21:23 [DEBUG] Copying file: blaze-test.jpg
+2026-10-10 16:21:23 [DEBUG] Copy destination: /Users/jawaharreddy/Desktop/Destination/2026/October/2026-10-10_15-59-53.jpg
+2026-10-10 16:21:23 [INFO] File Copied successfully: blaze-test.jpg
+2026-10-10 16:21:23 [INFO] Copied: /Users/jawaharreddy/Desktop/Destination/2026/October/2026-10-10_15-59-53.jpg
+2026-10-10 16:22:30 [INFO] Saving configuration.
+2026-10-10 16:22:30 [INFO] Configuration saved successfully.
+2026-10-10 16:22:30 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:30 [INFO] Opening database: database/blaze.db
+2026-10-10 16:22:30 [INFO] Database initialized successfully
+2026-10-10 16:22:30 [INFO] Database initialized successfully.
+2026-10-10 16:22:30 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:22:30 [INFO] Scan completed. Files found: 1
+2026-10-10 16:22:30 [INFO] Found 1 files.
+2026-10-10 16:22:30 [INFO] Skipped duplicate: blaze-test.jpg
+2026-10-10 16:22:33 [INFO] Saving configuration.
+2026-10-10 16:22:33 [INFO] Configuration saved successfully.
+2026-10-10 16:22:33 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:33 [INFO] Opening database: database/blaze.db
+2026-10-10 16:22:33 [INFO] Database initialized successfully
+2026-10-10 16:22:33 [INFO] Database initialized successfully.
+2026-10-10 16:22:33 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:22:33 [INFO] Scan completed. Files found: 1
+2026-10-10 16:22:33 [INFO] Found 1 files.
+2026-10-10 16:22:33 [INFO] Skipped duplicate: blaze-test.jpg
+2026-10-10 16:22:35 [INFO] Saving configuration.
+2026-10-10 16:22:35 [INFO] Configuration saved successfully.
+2026-10-10 16:22:35 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:36 [INFO] Saving configuration.
+2026-10-10 16:22:36 [INFO] Configuration saved successfully.
+2026-10-10 16:22:36 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:36 [INFO] Opening database: database/blaze.db
+2026-10-10 16:22:36 [INFO] Database initialized successfully
+2026-10-10 16:22:36 [INFO] Database initialized successfully.
+2026-10-10 16:22:36 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:22:36 [INFO] Scan completed. Files found: 1
+2026-10-10 16:22:36 [INFO] Found 1 files.
+2026-10-10 16:22:36 [INFO] Skipped duplicate: blaze-test.jpg
+2026-10-10 16:22:37 [INFO] Saving configuration.
+2026-10-10 16:22:37 [INFO] Configuration saved successfully.
+2026-10-10 16:22:37 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:37 [INFO] Opening database: database/blaze.db
+2026-10-10 16:22:37 [INFO] Database initialized successfully
+2026-10-10 16:22:37 [INFO] Database initialized successfully.
+2026-10-10 16:22:37 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:22:37 [INFO] Scan completed. Files found: 1
+2026-10-10 16:22:37 [INFO] Found 1 files.
+2026-10-10 16:22:37 [INFO] Skipped duplicate: blaze-test.jpg
+2026-10-10 16:22:37 [INFO] Saving configuration.
+2026-10-10 16:22:37 [INFO] Configuration saved successfully.
+2026-10-10 16:22:37 [INFO] Source and destination folders updated successfully.
+2026-10-10 16:22:37 [INFO] Opening database: database/blaze.db
+2026-10-10 16:22:37 [INFO] Database initialized successfully
+2026-10-10 16:22:37 [INFO] Database initialized successfully.
+2026-10-10 16:22:37 [INFO] Starting scan: /Users/jawaharreddy/Desktop/Source
+2026-10-10 16:22:37 [INFO] Scan completed. Files found: 1
+2026-10-10 16:22:37 [INFO] Found 1 files.
+2026-10-10 16:22:37 [INFO] Skipped duplicate: blaze-test.jpg
+2026-10-10 16:39:53 [INFO] Database connection closed.

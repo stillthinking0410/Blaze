@@ -1,0 +1,8 @@
+{
+    "databasePath": "database/blaze.db",
+    "destinationFolder": "/Users/jawaharreddy/Desktop/Destination",
+    "exifToolPath": "exiftool",
+    "logFile": "logs/blaze.log",
+    "maxThreads": 4,
+    "sourceFolder": "/Users/jawaharreddy/Desktop/Source"
+}
