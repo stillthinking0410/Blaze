@@ -1,0 +1,29 @@
+
+# C++ compiled artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.dylib
+*.so
+*.dll
+*.exe
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Local databases and SQLite files
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Backend logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak

@@ -1,2 +1,36 @@
-build/
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs and editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# CMake build output
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.a
+*.dylib
+*.so
+
+# Generated databases
+backend/database/*.db
+backend/database/*.db-shm
+backend/database/*.db-wal
