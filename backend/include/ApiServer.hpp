@@ -2,6 +2,10 @@
 
 #include <cstdint>
 #include <string>
+#include <atomic>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 #include <drogon/drogon.h>
 
@@ -16,6 +20,8 @@ public:
         SortingController& sortingController
     );
 
+    ~ApiServer();
+
     void start(
         const std::string& host,
         uint16_t port
@@ -26,4 +32,8 @@ private:
 
     ConfigManager& configManager_;
     SortingController& sortingController_;
+
+    std::atomic_bool shuttingDown_{false};
+    std::mutex workerMutex_;
+    std::vector<std::thread> workers_;
 };
