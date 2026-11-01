@@ -7,24 +7,16 @@
 
 class FileCopier
 {
-    public:
+  public:
+    explicit FileCopier(Logger& logger);
 
-        explicit FileCopier(
-            Logger& logger
-        );
+    std::filesystem::path copyFile(const std::filesystem::path& source,
+                                   const std::filesystem::path& destinationFolder,
+                                   const std::string& targetFileName) const;
 
-        std::filesystem::path copyFile(
-            const std::filesystem::path& source,
-            const std::filesystem::path& destinationFolder,
-            const std::string& targetFileName
-        ) const;
-    
-    private:
+  private:
+    Logger& logger_;
 
-        Logger& logger_;
-        
-        std::filesystem::path generateUniquePath(
-            const std::filesystem::path& destinationFolder,
-            const std::string& targetFileName
-        ) const;
+    std::filesystem::path generateUniquePath(const std::filesystem::path& destinationFolder,
+                                             const std::string& targetFileName) const;
 };

@@ -1,10 +1,7 @@
 #include "ApiServer.hpp"
 
-ApiServer::ApiServer(
-    ConfigManager &configManager,
-    SortingController &sortingController)
-    : configManager_(configManager),
-      sortingController_(sortingController)
+ApiServer::ApiServer(ConfigManager& configManager, SortingController& sortingController)
+    : configManager_(configManager), sortingController_(sortingController)
 {
     registerRoutes();
 }
@@ -14,25 +11,18 @@ void ApiServer::registerRoutes()
     // GET /api/config
     drogon::app().registerHandler(
         "/api/config",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
-            const Config &config =
-                configManager_.getConfig();
+            const Config& config = configManager_.getConfig();
 
             Json::Value response;
 
-            response["sourceFolder"] =
-                config.sourceFolder.string();
+            response["sourceFolder"] = config.sourceFolder.string();
 
-            response["destinationFolder"] =
-                config.destinationFolder.string();
+            response["destinationFolder"] = config.destinationFolder.string();
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
             callback(httpResponse);
         },
@@ -41,74 +31,53 @@ void ApiServer::registerRoutes()
     // PUT /api/config
     drogon::app().registerHandler(
         "/api/config",
-        [this](
-            const drogon::HttpRequestPtr &request,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr& request,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
-            auto json =
-                request->getJsonObject();
+            auto json = request->getJsonObject();
 
             if (json == nullptr)
             {
                 Json::Value response;
 
-                response["error"] =
-                    "Invalid JSON request.";
+                response["error"] = "Invalid JSON request.";
 
-                auto httpResponse =
-                    drogon::HttpResponse::newHttpJsonResponse(
-                        response);
+                auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-                httpResponse->setStatusCode(
-                    drogon::k400BadRequest);
+                httpResponse->setStatusCode(drogon::k400BadRequest);
 
                 callback(httpResponse);
                 return;
             }
 
-            if (!json->isMember("sourceFolder") ||
-                !(*json)["sourceFolder"].isString() ||
-                !json->isMember("destinationFolder") ||
-                !(*json)["destinationFolder"].isString())
+            if (!json->isMember("sourceFolder") || !(*json)["sourceFolder"].isString() ||
+                !json->isMember("destinationFolder") || !(*json)["destinationFolder"].isString())
             {
                 Json::Value response;
 
-                response["error"] =
-                    "sourceFolder and destinationFolder are required.";
+                response["error"] = "sourceFolder and destinationFolder are required.";
 
-                auto httpResponse =
-                    drogon::HttpResponse::newHttpJsonResponse(
-                        response);
+                auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-                httpResponse->setStatusCode(
-                    drogon::k400BadRequest);
+                httpResponse->setStatusCode(drogon::k400BadRequest);
 
                 callback(httpResponse);
                 return;
             }
 
-            const std::filesystem::path sourceFolder =
-                (*json)["sourceFolder"].asString();
+            const std::filesystem::path sourceFolder = (*json)["sourceFolder"].asString();
 
-            const std::filesystem::path destinationFolder =
-                (*json)["destinationFolder"].asString();
+            const std::filesystem::path destinationFolder = (*json)["destinationFolder"].asString();
 
-            if (!configManager_.updateFolders(
-                    sourceFolder,
-                    destinationFolder))
+            if (!configManager_.updateFolders(sourceFolder, destinationFolder))
             {
                 Json::Value response;
 
-                response["error"] =
-                    "Invalid configuration.";
+                response["error"] = "Invalid configuration.";
 
-                auto httpResponse =
-                    drogon::HttpResponse::newHttpJsonResponse(
-                        response);
+                auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-                httpResponse->setStatusCode(
-                    drogon::k400BadRequest);
+                httpResponse->setStatusCode(drogon::k400BadRequest);
 
                 callback(httpResponse);
                 return;
@@ -116,15 +85,11 @@ void ApiServer::registerRoutes()
 
             Json::Value response;
 
-            response["status"] =
-                "updated";
+            response["status"] = "updated";
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-            httpResponse->setStatusCode(
-                drogon::k200OK);
+            httpResponse->setStatusCode(drogon::k200OK);
 
             callback(httpResponse);
         },
@@ -132,24 +97,18 @@ void ApiServer::registerRoutes()
 
     drogon::app().registerHandler(
         "/api/sorting/start",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
             if (!sortingController_.start())
             {
                 Json::Value response;
 
-                response["error"] =
-                    "Sorting is already running.";
+                response["error"] = "Sorting is already running.";
 
-                auto httpResponse =
-                    drogon::HttpResponse::newHttpJsonResponse(
-                        response);
+                auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-                httpResponse->setStatusCode(
-                    drogon::k409Conflict);
+                httpResponse->setStatusCode(drogon::k409Conflict);
 
                 callback(httpResponse);
                 return;
@@ -157,15 +116,11 @@ void ApiServer::registerRoutes()
 
             Json::Value response;
 
-            response["status"] =
-                "running";
+            response["status"] = "running";
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-            httpResponse->setStatusCode(
-                drogon::k200OK);
+            httpResponse->setStatusCode(drogon::k200OK);
 
             callback(httpResponse);
         },
@@ -173,15 +128,12 @@ void ApiServer::registerRoutes()
 
     drogon::app().registerHandler(
         "/api/sorting/status",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
             Json::Value response;
 
-            const SortingStatus status =
-                sortingController_.getStatus();
+            const SortingStatus status = sortingController_.getStatus();
 
             switch (status)
             {
@@ -202,8 +154,7 @@ void ApiServer::registerRoutes()
                 break;
 
             case SortingStatus::CompletedWithErrors:
-                response["status"] =
-                    "completed_with_errors";
+                response["status"] = "completed_with_errors";
                 break;
 
             case SortingStatus::Failed:
@@ -215,12 +166,9 @@ void ApiServer::registerRoutes()
                 break;
             }
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-            httpResponse->setStatusCode(
-                drogon::k200OK);
+            httpResponse->setStatusCode(drogon::k200OK);
 
             callback(httpResponse);
         },
@@ -228,44 +176,28 @@ void ApiServer::registerRoutes()
 
     drogon::app().registerHandler(
         "/api/sorting/progress",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
-            const ProgressInfo progress =
-                sortingController_.getProgress();
+            const ProgressInfo progress = sortingController_.getProgress();
 
             Json::Value response;
 
-            response["totalFiles"] =
-                static_cast<Json::UInt64>(
-                    progress.totalFiles);
+            response["totalFiles"] = static_cast<Json::UInt64>(progress.totalFiles);
 
-            response["processedFiles"] =
-                static_cast<Json::UInt64>(
-                    progress.processedFiles);
+            response["processedFiles"] = static_cast<Json::UInt64>(progress.processedFiles);
 
-            response["skippedFiles"] =
-                static_cast<Json::UInt64>(
-                    progress.skippedFiles);
+            response["skippedFiles"] = static_cast<Json::UInt64>(progress.skippedFiles);
 
-            response["failedFiles"] =
-                static_cast<Json::UInt64>(
-                    progress.failedFiles);
+            response["failedFiles"] = static_cast<Json::UInt64>(progress.failedFiles);
 
-            response["currentFile"] =
-                progress.currentFile.string();
+            response["currentFile"] = progress.currentFile.string();
 
-            response["percentage"] =
-                progress.percentage();
+            response["percentage"] = progress.percentage();
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-            httpResponse->setStatusCode(
-                drogon::k200OK);
+            httpResponse->setStatusCode(drogon::k200OK);
 
             callback(httpResponse);
         },
@@ -273,97 +205,70 @@ void ApiServer::registerRoutes()
 
     drogon::app().registerHandler(
         "/api/sorting/progress/stream",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
-            auto response =
-                drogon::HttpResponse::newAsyncStreamResponse(
-                    [this](
-                        drogon::ResponseStreamPtr stream)
-                    {
-                        std::thread(
-                            [this](
-                                drogon::ResponseStreamPtr stream)
+            auto response = drogon::HttpResponse::newAsyncStreamResponse(
+                [this](drogon::ResponseStreamPtr stream)
+                {
+                    std::thread(
+                        [this](drogon::ResponseStreamPtr stream)
+                        {
+                            while (true)
                             {
-                                while (true)
+                                const ProgressInfo progress = sortingController_.getProgress();
+
+                                Json::Value json;
+
+                                json["totalFiles"] = static_cast<Json::UInt64>(progress.totalFiles);
+
+                                json["processedFiles"] =
+                                    static_cast<Json::UInt64>(progress.processedFiles);
+
+                                json["skippedFiles"] =
+                                    static_cast<Json::UInt64>(progress.skippedFiles);
+
+                                json["failedFiles"] =
+                                    static_cast<Json::UInt64>(progress.failedFiles);
+
+                                json["currentFile"] = progress.currentFile.string();
+
+                                json["percentage"] = progress.percentage();
+
+                                const std::string data =
+                                    "data: " +
+                                    Json::writeString(Json::StreamWriterBuilder(), json) + "\n\n";
+
+                                if (!stream->send(data))
                                 {
-                                    const ProgressInfo progress =
-                                        sortingController_.getProgress();
-
-                                    Json::Value json;
-
-                                    json["totalFiles"] =
-                                        static_cast<Json::UInt64>(
-                                            progress.totalFiles);
-
-                                    json["processedFiles"] =
-                                        static_cast<Json::UInt64>(
-                                            progress.processedFiles);
-
-                                    json["skippedFiles"] =
-                                        static_cast<Json::UInt64>(
-                                            progress.skippedFiles);
-
-                                    json["failedFiles"] =
-                                        static_cast<Json::UInt64>(
-                                            progress.failedFiles);
-
-                                    json["currentFile"] =
-                                        progress.currentFile.string();
-
-                                    json["percentage"] =
-                                        progress.percentage();
-
-                                    const std::string data =
-                                        "data: " +
-                                        Json::writeString(
-                                            Json::StreamWriterBuilder(),
-                                            json) +
-                                        "\n\n";
-
-                                    if (!stream->send(data))
-                                    {
-                                        break;
-                                    }
-
-                                    const SortingStatus status =
-                                        sortingController_.getStatus();
-
-                                    if (status ==
-                                            SortingStatus::Completed ||
-                                        status ==
-                                            SortingStatus::CompletedWithErrors ||
-                                        status ==
-                                            SortingStatus::Failed ||
-                                        status ==
-                                            SortingStatus::Cancelled)
-                                    {
-                                        break;
-                                    }
-
-                                    std::this_thread::sleep_for(
-                                        std::chrono::milliseconds(250));
+                                    break;
                                 }
 
-                                stream->close();
-                            },
-                            std::move(stream))
-                            .detach();
-                    },
-                    true);
+                                const SortingStatus status = sortingController_.getStatus();
 
-            response->setContentTypeString(
-                "text/event-stream");
+                                if (status == SortingStatus::Completed ||
+                                    status == SortingStatus::CompletedWithErrors ||
+                                    status == SortingStatus::Failed ||
+                                    status == SortingStatus::Cancelled)
+                                {
+                                    break;
+                                }
 
-            response->addHeader(
-                "Cache-Control",
-                "no-cache");
+                                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                            }
 
-            response->addHeader(
-                "Connection",
-                "keep-alive");
+                            stream->close();
+                        },
+                        std::move(stream))
+                        .detach();
+                },
+                true);
+
+            response->setContentTypeString("text/event-stream");
+
+            response->addHeader("Cache-Control", "no-cache");
+
+            response->addHeader("Connection", "keep-alive");
 
             callback(response);
         },
@@ -371,28 +276,20 @@ void ApiServer::registerRoutes()
 
     drogon::app().registerHandler(
         "/api/sorting/cancel",
-        [this](
-            const drogon::HttpRequestPtr &,
-            std::function<void(
-                const drogon::HttpResponsePtr &)> &&callback)
+        [this](const drogon::HttpRequestPtr&,
+               std::function<void(const drogon::HttpResponsePtr&)>&& callback)
         {
-            const SortingStatus status =
-                sortingController_.getStatus();
+            const SortingStatus status = sortingController_.getStatus();
 
-            if (status != SortingStatus::Running &&
-                status != SortingStatus::Cancelling)
+            if (status != SortingStatus::Running && status != SortingStatus::Cancelling)
             {
                 Json::Value response;
 
-                response["error"] =
-                    "Sorting is not running.";
+                response["error"] = "Sorting is not running.";
 
-                auto httpResponse =
-                    drogon::HttpResponse::newHttpJsonResponse(
-                        response);
+                auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-                httpResponse->setStatusCode(
-                    drogon::k409Conflict);
+                httpResponse->setStatusCode(drogon::k409Conflict);
 
                 callback(httpResponse);
                 return;
@@ -402,26 +299,18 @@ void ApiServer::registerRoutes()
 
             Json::Value response;
 
-            response["status"] =
-                "cancelling";
+            response["status"] = "cancelling";
 
-            auto httpResponse =
-                drogon::HttpResponse::newHttpJsonResponse(
-                    response);
+            auto httpResponse = drogon::HttpResponse::newHttpJsonResponse(response);
 
-            httpResponse->setStatusCode(
-                drogon::k200OK);
+            httpResponse->setStatusCode(drogon::k200OK);
 
             callback(httpResponse);
         },
         {drogon::Post});
 }
 
-void ApiServer::start(
-    const std::string &host,
-    uint16_t port)
+void ApiServer::start(const std::string& host, uint16_t port)
 {
-    drogon::app()
-        .addListener(host, port)
-        .run();
+    drogon::app().addListener(host, port).run();
 }

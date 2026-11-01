@@ -1,9 +1,9 @@
 #pragma once
 
-#include <cstdint>
-#include <string>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -14,20 +14,14 @@
 
 class ApiServer
 {
-public:
-    ApiServer(
-        ConfigManager& configManager,
-        SortingController& sortingController
-    );
+  public:
+    ApiServer(ConfigManager& configManager, SortingController& sortingController);
 
     ~ApiServer();
 
-    void start(
-        const std::string& host,
-        uint16_t port
-    );
+    void start(const std::string& host, uint16_t port);
 
-private:
+  private:
     void registerRoutes();
 
     ConfigManager& configManager_;

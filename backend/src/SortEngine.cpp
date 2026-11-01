@@ -3,37 +3,24 @@
 #include <iostream>
 #include <stdexcept>
 
-SortEngine::SortEngine(
-    const Config& config,
-    Logger& logger
-)
-    : logger_(logger),
-      scanner_(logger),
-      metadataReader_(config, logger),
-      fileCopier_(logger),
+SortEngine::SortEngine(const Config& config, Logger& logger)
+    : logger_(logger), scanner_(logger), metadataReader_(config, logger), fileCopier_(logger),
       database_(config.databasePath, logger)
 {
 }
 
-bool SortEngine::run(
-    const std::filesystem::path& sourceFolder,
-    const std::filesystem::path& destinationFolder,
-    ProgressCallback callback,
-    CancellationCallback cancellationCallback
-)
+bool SortEngine::run(const std::filesystem::path& sourceFolder,
+                     const std::filesystem::path& destinationFolder, ProgressCallback callback,
+                     CancellationCallback cancellationCallback)
 {
     if (!database_.initialize())
     {
-        logger_.error(
-            "Failed to initialize database."
-        );
+        logger_.error("Failed to initialize database.");
 
         return false;
     }
 
-    logger_.info(
-        "Database initialized successfully."
-    );
+    logger_.info("Database initialized successfully.");
 
     std::vector<std::filesystem::path> files;
 
@@ -41,11 +28,7 @@ bool SortEngine::run(
     {
         files = scanner_.scan(sourceFolder);
 
-        logger_.info(
-            "Found " +
-            std::to_string(files.size()) +
-            " files."
-        );
+        logger_.info("Found " + std::to_string(files.size()) + " files.");
     }
     catch (const std::exception& e)
     {
@@ -65,34 +48,26 @@ bool SortEngine::run(
     {
         // Check for cancellation before starting
         // the next file.
-        if (cancellationCallback &&
-            cancellationCallback())
+        if (cancellationCallback && cancellationCallback())
         {
-            logger_.info(
-                "Sorting cancellation requested."
-            );
+            logger_.info("Sorting cancellation requested.");
 
             return true;
         }
 
-        progress.currentFile =
-            file.filename().string();
+        progress.currentFile = file.filename().string();
 
         try
         {
             // Generate SHA-256 hash.
-            std::string hash =
-                hashGenerator_.generateHash(file);
+            std::string hash = hashGenerator_.generateHash(file);
 
             // Skip if already processed.
             if (database_.isProcessed(hash))
             {
                 progress.skippedFiles++;
 
-                logger_.info(
-                    "Skipped duplicate: " +
-                    file.filename().string()
-                );
+                logger_.info("Skipped duplicate: " + file.filename().string());
 
                 if (callback)
                 {
@@ -103,33 +78,24 @@ bool SortEngine::run(
             }
 
             // Read the original capture date from metadata.
-            auto captureDate =
-                metadataReader_.getCaptureDate(file);
+            auto captureDate = metadataReader_.getCaptureDate(file);
 
             // Fall back to the file modification time when metadata is absent.
             if (!captureDate)
             {
                 std::error_code error;
-                const auto modifiedTime =
-                    std::filesystem::last_write_time(file, error);
+                const auto modifiedTime = std::filesystem::last_write_time(file, error);
 
                 if (!error)
                 {
                     const auto systemTime =
-                        std::chrono::time_point_cast<
-                            std::chrono::system_clock::duration
-                        >(
-                            modifiedTime -
-                            std::filesystem::file_time_type::clock::now() +
-                            std::chrono::system_clock::now()
-                        );
+                        std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                            modifiedTime - std::filesystem::file_time_type::clock::now() +
+                            std::chrono::system_clock::now());
 
                     captureDate = systemTime;
 
-                    logger_.info(
-                        "Using file modification time: " +
-                        file.filename().string()
-                    );
+                    logger_.info("Using file modification time: " + file.filename().string());
                 }
             }
 
@@ -138,10 +104,8 @@ bool SortEngine::run(
             {
                 progress.failedFiles++;
 
-                logger_.warning(
-                    "Capture date and modification time unavailable: " +
-                    file.filename().string()
-                );
+                logger_.warning("Capture date and modification time unavailable: " +
+                                file.filename().string());
 
                 if (callback)
                 {
@@ -153,51 +117,30 @@ bool SortEngine::run(
 
             // Generate destination folder.
             auto destinationFolderPath =
-                destinationGenerator_.generateFolderPath(
-                    destinationFolder,
-                    *captureDate
-                );
+                destinationGenerator_.generateFolderPath(destinationFolder, *captureDate);
 
             // Generate destination filename.
             auto targetFileName =
-                destinationGenerator_.generateFileName(
-                    *captureDate,
-                    file.extension().string()
-                );
+                destinationGenerator_.generateFileName(*captureDate, file.extension().string());
 
             // Copy file.
-            auto copiedFile =
-                fileCopier_.copyFile(
-                    file,
-                    destinationFolderPath,
-                    targetFileName
-                );
+            auto copiedFile = fileCopier_.copyFile(file, destinationFolderPath, targetFileName);
 
             // Mark as processed.
-            if (!database_.addProcessed(
-                    hash,
-                    file.string(),
-                    copiedFile.string()))
+            if (!database_.addProcessed(hash, file.string(), copiedFile.string()))
             {
                 // Remove the copied file because
                 // database tracking failed.
                 std::filesystem::remove(copiedFile);
 
-                logger_.error(
-                    "Database update failed."
-                );
+                logger_.error("Database update failed.");
 
-                throw std::runtime_error(
-                    "Database update failed."
-                );
+                throw std::runtime_error("Database update failed.");
             }
 
             progress.processedFiles++;
 
-            logger_.info(
-                "Copied: " +
-                copiedFile.string()
-            );
+            logger_.info("Copied: " + copiedFile.string());
 
             if (callback)
             {
@@ -213,12 +156,8 @@ bool SortEngine::run(
                 callback(progress);
             }
 
-            logger_.error(
-                "Failed to process " +
-                file.filename().string() +
-                ". Reason: " +
-                e.what()
-            );
+            logger_.error("Failed to process " + file.filename().string() +
+                          ". Reason: " + e.what());
         }
     }
 
@@ -230,36 +169,19 @@ bool SortEngine::run(
         callback(progress);
     }
 
-    std::cout
-        << "\n========== Blaze Summary ==========\n";
+    std::cout << "\n========== Blaze Summary ==========\n";
 
-    std::cout
-        << "Total Files    : "
-        << progress.totalFiles
-        << '\n';
+    std::cout << "Total Files    : " << progress.totalFiles << '\n';
 
-    std::cout
-        << "Copied         : "
-        << progress.processedFiles
-        << '\n';
+    std::cout << "Copied         : " << progress.processedFiles << '\n';
 
-    std::cout
-        << "Skipped        : "
-        << progress.skippedFiles
-        << '\n';
+    std::cout << "Skipped        : " << progress.skippedFiles << '\n';
 
-    std::cout
-        << "Failed         : "
-        << progress.failedFiles
-        << '\n';
+    std::cout << "Failed         : " << progress.failedFiles << '\n';
 
-    std::cout
-        << "Percentage     : "
-        << progress.percentage()
-        << "%\n";
+    std::cout << "Percentage     : " << progress.percentage() << "%\n";
 
-    std::cout
-        << "===================================\n";
+    std::cout << "===================================\n";
 
     return true;
 }

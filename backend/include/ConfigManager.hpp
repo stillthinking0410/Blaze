@@ -7,12 +7,8 @@
 
 class ConfigManager
 {
-public:
-
-    explicit ConfigManager(
-        const std::filesystem::path& configPath,
-        Logger& logger
-    );
+  public:
+    explicit ConfigManager(const std::filesystem::path& configPath, Logger& logger);
 
     bool initialize();
 
@@ -22,17 +18,14 @@ public:
 
     bool validate() const;
 
-    bool updateFolders(
-        const std::filesystem::path& sourceFolder,
-        const std::filesystem::path& destinationFolder
-    );
+    bool updateFolders(const std::filesystem::path& sourceFolder,
+                       const std::filesystem::path& destinationFolder);
 
     Config& getConfig();
 
     const Config& getConfig() const;
 
-private:
-
+  private:
     bool createDefaultConfig() const;
 
     bool writeConfig() const;
@@ -42,5 +35,4 @@ private:
     Config config_;
 
     Logger& logger_;
-
 };

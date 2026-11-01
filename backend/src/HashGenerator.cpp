@@ -7,17 +7,13 @@
 #include <sstream>
 #include <stdexcept>
 
-std::string HashGenerator::generateHash(
-    const std::filesystem::path& file
-) const
+std::string HashGenerator::generateHash(const std::filesystem::path& file) const
 {
     std::ifstream input(file, std::ios::binary);
 
     if (!input)
     {
-        throw std::runtime_error(
-            "Unable to open file: " + file.string()
-        );
+        throw std::runtime_error("Unable to open file: " + file.string());
     }
 
     EVP_MD_CTX* context = EVP_MD_CTX_new();
@@ -43,11 +39,7 @@ std::string HashGenerator::generateHash(
 
         if (bytesRead > 0)
         {
-            EVP_DigestUpdate(
-                context,
-                buffer,
-                static_cast<std::size_t>(bytesRead)
-            );
+            EVP_DigestUpdate(context, buffer, static_cast<std::size_t>(bytesRead));
         }
     }
 
@@ -68,8 +60,7 @@ std::string HashGenerator::generateHash(
 
     for (unsigned int i = 0; i < hashLength; ++i)
     {
-        output << std::setw(2)
-               << static_cast<int>(hash[i]);
+        output << std::setw(2) << static_cast<int>(hash[i]);
     }
 
     return output.str();

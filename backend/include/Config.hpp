@@ -9,14 +9,11 @@ struct Config
 
     std::filesystem::path destinationFolder;
 
-    std::filesystem::path databasePath = 
-    "database/blaze.db";
+    std::filesystem::path databasePath = "database/blaze.db";
 
-    std::filesystem::path exifToolPath = 
-    "exiftool";
+    std::filesystem::path exifToolPath = "exiftool";
 
-    std::filesystem::path logFile = 
-    "logs/blaze.log";
+    std::filesystem::path logFile = "logs/blaze.log";
 
     unsigned int maxThreads = 4;
 };

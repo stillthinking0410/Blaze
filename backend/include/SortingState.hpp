@@ -20,8 +20,7 @@ enum class SortingStatus
 
 class SortingState
 {
-public:
-
+  public:
     SortingState();
 
     void start();
@@ -30,9 +29,7 @@ public:
 
     bool isCancellationRequested() const;
 
-    void updateProgress(
-        const ProgressInfo& progress
-    );
+    void updateProgress(const ProgressInfo& progress);
 
     void complete();
 
@@ -44,8 +41,7 @@ public:
 
     ProgressInfo getProgress() const;
 
-private:
-    
+  private:
     std::atomic<SortingStatus> status_;
 
     std::atomic<bool> cancellationRequested_;

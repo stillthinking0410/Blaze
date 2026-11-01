@@ -14,11 +14,8 @@ enum class LogLevel
 
 class Logger
 {
-public:
-
-    explicit Logger(
-        const std::filesystem::path& logFile
-    );
+  public:
+    explicit Logger(const std::filesystem::path& logFile);
 
     bool initialize();
 
@@ -30,16 +27,10 @@ public:
 
     void error(const std::string& message);
 
-private:
+  private:
+    void log(LogLevel level, const std::string& message);
 
-    void log(
-        LogLevel level,
-        const std::string& message
-    );
-
-    std::string logLevelToString(
-        LogLevel level
-    ) const;
+    std::string logLevelToString(LogLevel level) const;
 
     std::string getCurrentTimestamp() const;
 

@@ -11,27 +11,15 @@
 #include "SortingState.hpp"
 
 using SortingOperation =
-    std::function<bool(
-        const std::filesystem::path&,
-        const std::filesystem::path&,
-        ProgressCallback,
-        CancellationCallback
-    )>;
+    std::function<bool(const std::filesystem::path&, const std::filesystem::path&, ProgressCallback,
+                       CancellationCallback)>;
 
 class SortingController
 {
-public:
+  public:
+    SortingController(const Config& config, Logger& logger);
 
-    SortingController(
-        const Config& config,
-        Logger& logger
-    );
-
-    SortingController(
-        const Config& config,
-        Logger& logger,
-        SortingOperation sortingOperation
-    );
+    SortingController(const Config& config, Logger& logger, SortingOperation sortingOperation);
 
     ~SortingController();
 
@@ -43,8 +31,7 @@ public:
 
     ProgressInfo getProgress() const;
 
-private:
-
+  private:
     void runSorting();
 
     const Config& config_;

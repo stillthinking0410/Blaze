@@ -4,10 +4,7 @@
 
 #ifdef _WIN32
 
-inline FILE* blaze_popen(
-    const char* command,
-    const char* mode
-)
+inline FILE* blaze_popen(const char* command, const char* mode)
 {
     return _popen(command, mode);
 }
@@ -21,10 +18,7 @@ inline int blaze_pclose(FILE* pipe)
 
 #include <sys/wait.h>
 
-inline FILE* blaze_popen(
-    const char* command,
-    const char* mode
-)
+inline FILE* blaze_popen(const char* command, const char* mode)
 {
     return popen(command, mode);
 }

@@ -9,11 +9,8 @@ struct sqlite3;
 
 class Database
 {
-public:
-    explicit Database(
-        const std::filesystem::path& databasePath,
-        Logger& logger
-    );
+  public:
+    explicit Database(const std::filesystem::path& databasePath, Logger& logger);
 
     ~Database();
 
@@ -21,14 +18,10 @@ public:
 
     bool isProcessed(const std::string& hash) const;
 
-    bool addProcessed(
-        const std::string& hash,
-        const std::filesystem::path& sourcePath,
-        const std::filesystem::path& destinationPath
-    );
+    bool addProcessed(const std::string& hash, const std::filesystem::path& sourcePath,
+                      const std::filesystem::path& destinationPath);
 
-private:
-
+  private:
     std::filesystem::path databasePath_;
 
     Logger& logger_;

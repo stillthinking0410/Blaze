@@ -1,0 +1,58 @@
+
+repos:
+  # General repository hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      - id: end-of-file-fixer
+
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+      - id: check-merge-conflict
+
+      - id: check-yaml
+
+      - id: check-json
+        exclude: ^(\.vscode/.*\.json|frontend/tsconfig\..*\.json)$
+
+  # C++ automatic formatting
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format
+        entry: clang-format -i
+        language: system
+        types_or: [c++, c]
+        files: ^(backend|tests)/.*\.(cpp|hpp|h|cc|cxx|hxx)$
+
+  # C++ static analysis
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        entry: clang-tidy -p build
+        language: system
+        types: [c++]
+        files: ^(backend|tests)/.*\.(cpp|cc|cxx)$
+
+  # Frontend automatic formatting
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: frontend/node_modules/.bin/prettier --write
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx|json|css|html|md)$
+
+  # Frontend linting
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint
+        entry: frontend/node_modules/.bin/oxlint
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$

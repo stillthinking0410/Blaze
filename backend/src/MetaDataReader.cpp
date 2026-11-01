@@ -4,35 +4,23 @@
 
 #include <array>
 #include <cstdio>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 #include <vector>
 
 namespace
 {
-    const std::vector<std::string> DATE_TAGS =
-    {
-        "DateTimeOriginal",
-        "CreateDate",
-        "MediaCreateDate",
-        "CreationDate",
-        "ModifyDate"
-    };
+const std::vector<std::string> DATE_TAGS = {"DateTimeOriginal", "CreateDate", "MediaCreateDate",
+                                            "CreationDate", "ModifyDate"};
 }
 
-MetaDataReader::MetaDataReader(
-    const Config& config,
-    Logger& logger
-)
-    : config_(config),
-    logger_(logger)
+MetaDataReader::MetaDataReader(const Config& config, Logger& logger)
+    : config_(config), logger_(logger)
 {
 }
 
 std::optional<std::chrono::system_clock::time_point>
-MetaDataReader::parseCaptureDate(
-    const std::string& output
-) const
+MetaDataReader::parseCaptureDate(const std::string& output) const
 {
     std::istringstream input(output);
 
@@ -49,10 +37,7 @@ MetaDataReader::parseCaptureDate(
 
         std::istringstream stream(line);
 
-        stream >> std::get_time(
-            &tm,
-            "%Y:%m:%d %H:%M:%S"
-        );
+        stream >> std::get_time(&tm, "%Y:%m:%d %H:%M:%S");
 
         if (!stream.fail())
         {
@@ -66,20 +51,13 @@ MetaDataReader::parseCaptureDate(
 }
 
 std::optional<std::chrono::system_clock::time_point>
-MetaDataReader::getCaptureDate(
-    const std::filesystem::path& file
-) const
+MetaDataReader::getCaptureDate(const std::filesystem::path& file) const
 {
-    logger_.debug(
-        "Reading metadata: " +
-        file.filename().string()
-    );
+    logger_.debug("Reading metadata: " + file.filename().string());
 
     std::ostringstream command;
 
-    command << "\""
-        << config_.exifToolPath.string()
-        << "\" -s3 ";
+    command << "\"" << config_.exifToolPath.string() << "\" -s3 ";
 
     for (const auto& tag : DATE_TAGS)
     {
@@ -94,26 +72,16 @@ MetaDataReader::getCaptureDate(
 
     std::string commandString = command.str();
 
-    FILE* pipe =
-        blaze_popen(commandString.c_str(), "r");
+    FILE* pipe = blaze_popen(commandString.c_str(), "r");
 
     if (!pipe)
     {
-        logger_.error(
-            "Failed to start ExifTool: " +
-            file.filename().string()
-        );
+        logger_.error("Failed to start ExifTool: " + file.filename().string());
 
         return std::nullopt;
     }
 
-    while(
-        fgets(
-            buffer.data(),
-            buffer.size(),
-            pipe
-        ) != nullptr
-    )
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
     {
         result += buffer.data();
     }
@@ -122,39 +90,28 @@ MetaDataReader::getCaptureDate(
 
     if (exitCode != 0)
     {
-        logger_.error(
-            "ExifTool failed for: " +
-            file.filename().string()
-        );
+        logger_.error("ExifTool failed for: " + file.filename().string());
 
         return std::nullopt;
     }
 
-    if (!result.empty() &&
-        result.back() == '\n')
+    if (!result.empty() && result.back() == '\n')
     {
         result.pop_back();
     }
 
     if (result.empty())
     {
-        logger_.warning(
-            "No capture date found for: " +
-            file.filename().string()
-        );
+        logger_.warning("No capture date found for: " + file.filename().string());
 
         return std::nullopt;
     }
 
-    auto captureDate = 
-        parseCaptureDate(result);
-    
+    auto captureDate = parseCaptureDate(result);
+
     if (!captureDate)
     {
-        logger_.warning(
-            "Unable to parse capture date for: " +
-            file.filename().string()
-        );
+        logger_.warning("Unable to parse capture date for: " + file.filename().string());
     }
 
     return captureDate;

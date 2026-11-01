@@ -9,26 +9,17 @@
 
 class MetaDataReader
 {
-public:
-
-    explicit MetaDataReader(
-        const Config& config,
-        Logger& logger
-    );
+  public:
+    explicit MetaDataReader(const Config& config, Logger& logger);
 
     std::optional<std::chrono::system_clock::time_point>
-    getCaptureDate(
-        const std::filesystem::path& file
-    ) const;
+    getCaptureDate(const std::filesystem::path& file) const;
 
-private:
-
+  private:
     const Config& config_;
 
     Logger& logger_;
 
     std::optional<std::chrono::system_clock::time_point>
-    parseCaptureDate(
-        const std::string& output
-    ) const;
+    parseCaptureDate(const std::string& output) const;
 };

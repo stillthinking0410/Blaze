@@ -7,20 +7,13 @@
 
 class Scanner
 {
-public:
+  public:
+    explicit Scanner(Logger& logger);
 
-    explicit Scanner(
-        Logger& logger
-    );
+    std::vector<std::filesystem::path> scan(const std::filesystem::path& root) const;
 
-    std::vector<std::filesystem::path>
-    scan(const std::filesystem::path& root) const;
-
-private:
-
+  private:
     Logger& logger_;
-    
-    bool isSupportedFile(
-        const std::filesystem::path& file
-    ) const;
+
+    bool isSupportedFile(const std::filesystem::path& file) const;
 };

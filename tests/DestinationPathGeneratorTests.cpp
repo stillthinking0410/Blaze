@@ -5,10 +5,7 @@
 #include <chrono>
 #include <ctime>
 
-TEST(
-    DestinationPathGeneratorTest,
-    GeneratesCorrectFolderPath
-)
+TEST(DestinationPathGeneratorTest, GeneratesCorrectFolderPath)
 {
     DestinationPathGenerator generator;
 
@@ -20,25 +17,14 @@ TEST(
 
     std::time_t time = std::mktime(&tm);
 
-    auto captureDate =
-        std::chrono::system_clock::from_time_t(time);
-    
-    auto result =
-        generator.generateFolderPath(
-            "/Photos",
-            captureDate
-        );
-    
-    EXPECT_EQ(
-        result,
-        "/Photos/2026/July"
-    );
+    auto captureDate = std::chrono::system_clock::from_time_t(time);
+
+    auto result = generator.generateFolderPath("/Photos", captureDate);
+
+    EXPECT_EQ(result, "/Photos/2026/July");
 }
 
-TEST(
-    DestinationPathGeneratorTest,
-    GeneratesCorrectFileName
-)
+TEST(DestinationPathGeneratorTest, GeneratesCorrectFileName)
 {
     DestinationPathGenerator generator;
 
@@ -53,25 +39,14 @@ TEST(
 
     std::time_t time = std::mktime(&tm);
 
-    auto captureDate =
-        std::chrono::system_clock::from_time_t(time);
+    auto captureDate = std::chrono::system_clock::from_time_t(time);
 
-    auto result =
-        generator.generateFileName(
-            captureDate,
-            ".jpg"
-        );
+    auto result = generator.generateFileName(captureDate, ".jpg");
 
-    EXPECT_EQ(
-        result,
-        "2026-07-18_10-42-53.jpg"
-    );
+    EXPECT_EQ(result, "2026-07-18_10-42-53.jpg");
 }
 
-TEST(
-    DestinationPathGeneratorTest,
-    PreservesFileExtension
-)
+TEST(DestinationPathGeneratorTest, PreservesFileExtension)
 {
     DestinationPathGenerator generator;
 
@@ -83,30 +58,14 @@ TEST(
 
     std::time_t time = std::mktime(&tm);
 
-    auto captureDate =
-        std::chrono::system_clock::from_time_t(time);
+    auto captureDate = std::chrono::system_clock::from_time_t(time);
 
-    EXPECT_EQ(
-        generator.generateFileName(
-            captureDate,
-            ".mov"
-        ),
-        "2026-07-18_00-00-00.mov"
-    );
+    EXPECT_EQ(generator.generateFileName(captureDate, ".mov"), "2026-07-18_00-00-00.mov");
 
-    EXPECT_EQ(
-        generator.generateFileName(
-            captureDate,
-            ".HEIC"
-        ),
-        "2026-07-18_00-00-00.HEIC"
-    );
+    EXPECT_EQ(generator.generateFileName(captureDate, ".HEIC"), "2026-07-18_00-00-00.HEIC");
 }
 
-TEST(
-    DestinationPathGeneratorTest,
-    UsesProvidedDestinationRoot
-)
+TEST(DestinationPathGeneratorTest, UsesProvidedDestinationRoot)
 {
     DestinationPathGenerator generator;
 
@@ -118,18 +77,9 @@ TEST(
 
     std::time_t time = std::mktime(&tm);
 
-    auto captureDate =
-        std::chrono::system_clock::from_time_t(time);
+    auto captureDate = std::chrono::system_clock::from_time_t(time);
 
-    auto result =
-        generator.generateFolderPath(
-            "/Users/Test/Photos",
-            captureDate
-        );
+    auto result = generator.generateFolderPath("/Users/Test/Photos", captureDate);
 
-    EXPECT_EQ(
-        result,
-        "/Users/Test/Photos/2025/December"
-    );
+    EXPECT_EQ(result, "/Users/Test/Photos/2025/December");
 }
-
