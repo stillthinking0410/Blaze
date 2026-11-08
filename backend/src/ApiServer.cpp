@@ -211,56 +211,150 @@ void ApiServer::registerRoutes()
             auto response = drogon::HttpResponse::newAsyncStreamResponse(
                 [this](drogon::ResponseStreamPtr stream)
                 {
-                    std::thread(
-                        [this](drogon::ResponseStreamPtr stream)
+                    auto worker = std::make_unique<WorkerRecord>();
+                    WorkerRecord* const workerRecord = worker.get();
+                    bool rejectWorker = false;
+                    bool workerStartFailed = false;
+                    std::string workerStartError;
+                    std::vector<std::unique_ptr<WorkerRecord>> completedWorkers;
+
+                    {
+                        std::lock_guard<std::mutex> lock(workerMutex_);
+
+                        if (shuttingDown_.load())
                         {
-                            while (true)
+                            rejectWorker = true;
+                        }
+                        else
+                        {
+                            auto workerIterator = workers_.begin();
+
+                            while (workerIterator != workers_.end())
                             {
-                                const ProgressInfo progress = sortingController_.getProgress();
-
-                                Json::Value json;
-
-                                json["totalFiles"] = static_cast<Json::UInt64>(progress.totalFiles);
-
-                                json["processedFiles"] =
-                                    static_cast<Json::UInt64>(progress.processedFiles);
-
-                                json["skippedFiles"] =
-                                    static_cast<Json::UInt64>(progress.skippedFiles);
-
-                                json["failedFiles"] =
-                                    static_cast<Json::UInt64>(progress.failedFiles);
-
-                                json["currentFile"] = progress.currentFile.string();
-
-                                json["percentage"] = progress.percentage();
-
-                                const std::string data =
-                                    "data: " +
-                                    Json::writeString(Json::StreamWriterBuilder(), json) + "\n\n";
-
-                                if (!stream->send(data))
+                                if ((*workerIterator)->finished.load())
                                 {
-                                    break;
+                                    completedWorkers.push_back(std::move(*workerIterator));
+                                    workerIterator = workers_.erase(workerIterator);
                                 }
-
-                                const SortingStatus status = sortingController_.getStatus();
-
-                                if (status == SortingStatus::Completed ||
-                                    status == SortingStatus::CompletedWithErrors ||
-                                    status == SortingStatus::Failed ||
-                                    status == SortingStatus::Cancelled)
+                                else
                                 {
-                                    break;
+                                    ++workerIterator;
                                 }
-
-                                std::this_thread::sleep_for(std::chrono::milliseconds(250));
                             }
 
-                            stream->close();
-                        },
-                        std::move(stream))
-                        .detach();
+                            workers_.push_back(std::move(worker));
+
+                            try
+                            {
+                                workerRecord->thread = std::thread(
+                                    [this, workerRecord](drogon::ResponseStreamPtr stream)
+                                    {
+                                        try
+                                        {
+                                            while (!workerRecord->stopRequested.load())
+                                            {
+                                                const ProgressInfo progress =
+                                                    sortingController_.getProgress();
+
+                                                Json::Value json;
+
+                                                json["totalFiles"] =
+                                                    static_cast<Json::UInt64>(progress.totalFiles);
+
+                                                json["processedFiles"] = static_cast<Json::UInt64>(
+                                                    progress.processedFiles);
+
+                                                json["skippedFiles"] = static_cast<Json::UInt64>(
+                                                    progress.skippedFiles);
+
+                                                json["failedFiles"] =
+                                                    static_cast<Json::UInt64>(progress.failedFiles);
+
+                                                json["currentFile"] = progress.currentFile.string();
+
+                                                json["percentage"] = progress.percentage();
+
+                                                const std::string data =
+                                                    "data: " +
+                                                    Json::writeString(Json::StreamWriterBuilder(),
+                                                                      json) +
+                                                    "\n\n";
+
+                                                if (!stream->send(data))
+                                                {
+                                                    break;
+                                                }
+
+                                                const SortingStatus status =
+                                                    sortingController_.getStatus();
+
+                                                if (status == SortingStatus::Completed ||
+                                                    status == SortingStatus::CompletedWithErrors ||
+                                                    status == SortingStatus::Failed ||
+                                                    status == SortingStatus::Cancelled)
+                                                {
+                                                    break;
+                                                }
+
+                                                std::this_thread::sleep_for(
+                                                    std::chrono::milliseconds(250));
+                                            }
+                                        }
+                                        catch (const std::exception& e)
+                                        {
+                                            LOG_ERROR << "SSE progress worker failed: " << e.what();
+                                        }
+                                        catch (...)
+                                        {
+                                            LOG_ERROR << "SSE progress worker failed with an "
+                                                         "unknown exception.";
+                                        }
+
+                                        try
+                                        {
+                                            stream->close();
+                                        }
+                                        catch (const std::exception& e)
+                                        {
+                                            LOG_ERROR << "Failed to close SSE progress stream: "
+                                                      << e.what();
+                                        }
+                                        catch (...)
+                                        {
+                                            LOG_ERROR << "Failed to close SSE progress stream with "
+                                                         "an unknown exception.";
+                                        }
+
+                                        workerRecord->finished.store(true);
+                                    },
+                                    std::move(stream));
+                            }
+                            catch (const std::exception& e)
+                            {
+                                workers_.pop_back();
+                                workerStartFailed = true;
+                                workerStartError = e.what();
+                            }
+                        }
+                    }
+
+                    for (const auto& completedWorker : completedWorkers)
+                    {
+                        if (completedWorker->thread.joinable())
+                        {
+                            completedWorker->thread.join();
+                        }
+                    }
+
+                    if (workerStartFailed)
+                    {
+                        LOG_ERROR << "Failed to start SSE progress worker: " << workerStartError;
+                    }
+
+                    if (rejectWorker)
+                    {
+                        stream->close();
+                    }
                 },
                 true);
 
