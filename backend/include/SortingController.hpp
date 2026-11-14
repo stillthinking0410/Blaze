@@ -14,37 +14,36 @@ using SortingOperation =
     std::function<bool(const std::filesystem::path&, const std::filesystem::path&, ProgressCallback,
                        CancellationCallback)>;
 
-class SortingController
-{
-  public:
-    SortingController(const Config& config, Logger& logger);
+class SortingController {
+ public:
+  SortingController(const Config& config, Logger& logger);
 
-    SortingController(const Config& config, Logger& logger, SortingOperation sortingOperation);
+  SortingController(const Config& config, Logger& logger, SortingOperation sortingOperation);
 
-    ~SortingController();
+  ~SortingController();
 
-    bool start();
+  bool start();
 
-    void requestCancellation();
+  void requestCancellation();
 
-    SortingStatus getStatus() const;
+  SortingStatus getStatus() const;
 
-    ProgressInfo getProgress() const;
+  ProgressInfo getProgress() const;
 
-  private:
-    void runSorting();
+ private:
+  void runSorting();
 
-    const Config& config_;
+  const Config& config_;
 
-    Logger& logger_;
+  Logger& logger_;
 
-    SortEngine engine_;
+  SortEngine engine_;
 
-    SortingOperation sortingOperation_;
+  SortingOperation sortingOperation_;
 
-    SortingState state_;
+  SortingState state_;
 
-    mutable std::mutex controllerMutex_;
+  mutable std::mutex controllerMutex_;
 
-    std::thread worker_;
+  std::thread worker_;
 };

@@ -168,6 +168,27 @@ target_link_libraries(
     drogon
 )
 
+set(SHUTDOWN_TEST_SOURCES ${SOURCES})
+list(FILTER SHUTDOWN_TEST_SOURCES EXCLUDE REGEX "/main\\.cpp$")
+
+add_executable(
+    BlazeShutdownTest
+    tests/ApiServerShutdownTests.cpp
+    ${SHUTDOWN_TEST_SOURCES}
+)
+
+target_include_directories(BlazeShutdownTest PRIVATE backend/include)
+target_link_libraries(
+    BlazeShutdownTest
+    PRIVATE
+    GTest::gtest_main
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    SQLite::SQLite3
+    nlohmann_json::nlohmann_json
+    drogon
+)
+
 # ============================================================
 # Testing
 # ============================================================
@@ -179,3 +200,6 @@ include(GoogleTest)
 gtest_discover_tests(
     BlazeTest
 )
+
+add_test(NAME ApiServerShutdownTest COMMAND BlazeShutdownTest)
+set_tests_properties(ApiServerShutdownTest PROPERTIES TIMEOUT 15)

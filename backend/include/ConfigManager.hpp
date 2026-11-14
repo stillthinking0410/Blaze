@@ -1,38 +1,37 @@
 #pragma once
 
+#include <filesystem>
+
 #include "Config.hpp"
 #include "Logger.hpp"
 
-#include <filesystem>
+class ConfigManager {
+ public:
+  explicit ConfigManager(const std::filesystem::path& configPath, Logger& logger);
 
-class ConfigManager
-{
-  public:
-    explicit ConfigManager(const std::filesystem::path& configPath, Logger& logger);
+  bool initialize();
 
-    bool initialize();
+  bool load();
 
-    bool load();
+  bool save() const;
 
-    bool save() const;
+  bool validate() const;
 
-    bool validate() const;
+  bool updateFolders(const std::filesystem::path& sourceFolder,
+                     const std::filesystem::path& destinationFolder);
 
-    bool updateFolders(const std::filesystem::path& sourceFolder,
-                       const std::filesystem::path& destinationFolder);
+  Config& getConfig();
 
-    Config& getConfig();
+  const Config& getConfig() const;
 
-    const Config& getConfig() const;
+ private:
+  bool createDefaultConfig() const;
 
-  private:
-    bool createDefaultConfig() const;
+  bool writeConfig() const;
 
-    bool writeConfig() const;
+  std::filesystem::path configPath_;
 
-    std::filesystem::path configPath_;
+  Config config_;
 
-    Config config_;
-
-    Logger& logger_;
+  Logger& logger_;
 };

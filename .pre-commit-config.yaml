@@ -1,4 +1,3 @@
-
 repos:
   # General repository hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -19,15 +18,15 @@ repos:
       - id: check-json
         exclude: ^(\.vscode/.*\.json|frontend/tsconfig\..*\.json)$
 
-  # C++ automatic formatting
+  # C++ formatting validation
   - repo: local
     hooks:
       - id: clang-format
         name: clang-format
-        entry: clang-format -i
+        entry: clang-format --dry-run --Werror
         language: system
         types_or: [c++, c]
-        files: ^(backend|tests)/.*\.(cpp|hpp|h|cc|cxx|hxx)$
+        files: ^(backend|tests)/.*\.(cpp|hpp|h|cc|c|cxx|hxx)$
 
   # C++ static analysis
   - repo: local
@@ -39,14 +38,15 @@ repos:
         types: [c++]
         files: ^(backend|tests)/.*\.(cpp|cc|cxx)$
 
-  # Frontend automatic formatting
+  # Frontend formatting validation
   - repo: local
     hooks:
       - id: prettier
         name: prettier
-        entry: frontend/node_modules/.bin/prettier --write
+        entry: frontend/node_modules/.bin/prettier --check
+        args: [--config, frontend/.prettierrc.json]
         language: system
-        files: ^frontend/.*\.(ts|tsx|js|jsx|json|css|html|md)$
+        files: ^(frontend/.*\.(ts|tsx|js|jsx|json|jsonc|css|html|md|ya?ml)|\.pre-commit-config\.yaml)$
 
   # Frontend linting
   - repo: local
@@ -56,3 +56,13 @@ repos:
         entry: frontend/node_modules/.bin/oxlint
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
+
+  # Repository-wide formatting validation
+  - repo: local
+    hooks:
+      - id: formatting-check
+        name: formatting-check
+        entry: make format-check
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -7,11 +7,19 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.{cpp,hpp,h,c,cc,cxx}]
+[*.{cpp,hpp,h,cc,c,cxx,hxx}]
 indent_style = space
-indent_size = 4
+indent_size = 2
 
-[*.{ts,tsx,js,jsx,json,css,html}]
+[*.{ts,tsx,js,jsx,json,jsonc,css,html,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[CMakeLists.txt]
+indent_style = space
+indent_size = 2
+
+[*.cmake]
 indent_style = space
 indent_size = 2
 

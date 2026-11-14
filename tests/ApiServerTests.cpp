@@ -1,8 +1,12 @@
+#include <arpa/inet.h>
+#include <drogon/drogon.h>
 #include <gtest/gtest.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
-#include <drogon/drogon.h>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -13,752 +17,810 @@
 #include "Logger.hpp"
 #include "SortingController.hpp"
 
-class ApiServerTest : public ::testing::Test
-{
-  protected:
-    static void SetUpTestSuite()
-    {
-        testDirectory = std::filesystem::temp_directory_path() / "blaze_api_test";
+class ApiServerTest : public ::testing::Test {
+ protected:
+  static void SetUpTestSuite() {
+    testDirectory = std::filesystem::temp_directory_path() / "blaze_api_test";
 
-        std::filesystem::create_directories(testDirectory);
+    std::filesystem::create_directories(testDirectory);
 
-        logger = std::make_unique<Logger>(testDirectory / "test.log");
+    logger = std::make_unique<Logger>(testDirectory / "test.log");
 
-        configManager = std::make_unique<ConfigManager>(testDirectory / "config.json", *logger);
+    configManager = std::make_unique<ConfigManager>(testDirectory / "config.json", *logger);
 
-        ASSERT_TRUE(configManager->initialize());
+    ASSERT_TRUE(configManager->initialize());
 
-        sortingController = std::make_unique<SortingController>(
-            configManager->getConfig(), *logger,
-            [](const std::filesystem::path&, const std::filesystem::path&, ProgressCallback,
-               CancellationCallback cancellationCallback)
-            {
-                ApiServerTest::sortingStarted.store(true);
+    sortingController = std::make_unique<SortingController>(
+        configManager->getConfig(), *logger,
+        [](const std::filesystem::path&, const std::filesystem::path&, ProgressCallback,
+           CancellationCallback cancellationCallback) {
+          ApiServerTest::sortingStarted.store(true);
 
-                while (ApiServerTest::holdSorting.load())
-                {
-                    if (cancellationCallback && cancellationCallback())
-                    {
-                        return true;
-                    }
+          while (ApiServerTest::holdSorting.load()) {
+            if (cancellationCallback && cancellationCallback()) {
+              return true;
+            }
 
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+          }
 
-                return true;
-            });
+          return true;
+        });
 
-        server = std::make_unique<ApiServer>(*configManager, *sortingController);
+    server = std::make_unique<ApiServer>(*configManager, *sortingController);
 
-        serverThread = std::thread([] { drogon::app().addListener("127.0.0.1", port).run(); });
+    serverThread = std::thread([] { drogon::app().addListener("127.0.0.1", port).run(); });
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+
+  static void TearDownTestSuite() {
+    // Make sure a test does not leave
+    // the fake sorting operation running.
+    holdSorting.store(false);
+
+    drogon::app().quit();
+
+    if (serverThread.joinable()) {
+      serverThread.join();
     }
 
-    static void TearDownTestSuite()
-    {
-        // Make sure a test does not leave
-        // the fake sorting operation running.
-        holdSorting.store(false);
+    server.reset();
+    sortingController.reset();
+    configManager.reset();
+    logger.reset();
 
-        drogon::app().quit();
+    std::filesystem::remove_all(testDirectory);
+  }
 
-        if (serverThread.joinable())
-        {
-            serverThread.join();
-        }
+  static constexpr uint16_t port = 18080;
 
-        server.reset();
-        sortingController.reset();
-        configManager.reset();
-        logger.reset();
+  static inline std::filesystem::path testDirectory;
 
-        std::filesystem::remove_all(testDirectory);
-    }
+  static inline std::unique_ptr<Logger> logger;
 
-    static constexpr uint16_t port = 18080;
+  static inline std::unique_ptr<ConfigManager> configManager;
 
-    static inline std::filesystem::path testDirectory;
+  static inline std::unique_ptr<SortingController> sortingController;
 
-    static inline std::unique_ptr<Logger> logger;
+  static inline std::unique_ptr<ApiServer> server;
 
-    static inline std::unique_ptr<ConfigManager> configManager;
+  static inline std::thread serverThread;
 
-    static inline std::unique_ptr<SortingController> sortingController;
+  static inline std::atomic<bool> holdSorting{false};
 
-    static inline std::unique_ptr<ApiServer> server;
-
-    static inline std::thread serverThread;
-
-    static inline std::atomic<bool> holdSorting{false};
-
-    static inline std::atomic<bool> sortingStarted{false};
+  static inline std::atomic<bool> sortingStarted{false};
 };
 
-TEST_F(ApiServerTest, GetConfigReturnsConfiguration)
-{
-    configManager->getConfig().sourceFolder = "/test/source";
+TEST_F(ApiServerTest, GetConfigReturnsConfiguration) {
+  configManager->getConfig().sourceFolder = "/test/source";
 
-    configManager->getConfig().destinationFolder = "/test/destination";
+  configManager->getConfig().destinationFolder = "/test/destination";
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Get);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Get);
+  request->setPath("/api/config");
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["sourceFolder"].asString(), "/test/source");
+  EXPECT_EQ((*json)["sourceFolder"].asString(), "/test/source");
 
-    EXPECT_EQ((*json)["destinationFolder"].asString(), "/test/destination");
+  EXPECT_EQ((*json)["destinationFolder"].asString(), "/test/destination");
 }
 
-TEST_F(ApiServerTest, PutConfigUpdatesConfiguration)
-{
-    const auto newSource = testDirectory / "new_source";
+TEST_F(ApiServerTest, PutConfigUpdatesConfiguration) {
+  const auto newSource = testDirectory / "new_source";
 
-    const auto newDestination = testDirectory / "new_destination";
+  const auto newDestination = testDirectory / "new_destination";
 
-    std::filesystem::create_directories(newSource);
+  std::filesystem::create_directories(newSource);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Put);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Put);
+  request->setPath("/api/config");
 
-    Json::Value body;
+  Json::Value body;
 
-    body["sourceFolder"] = newSource.string();
+  body["sourceFolder"] = newSource.string();
 
-    body["destinationFolder"] = newDestination.string();
+  body["destinationFolder"] = newDestination.string();
 
-    request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+  request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
 
-    request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
+  request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["status"].asString(), "updated");
+  EXPECT_EQ((*json)["status"].asString(), "updated");
 
-    const Config& config = configManager->getConfig();
+  const Config& config = configManager->getConfig();
 
-    EXPECT_EQ(config.sourceFolder, newSource);
+  EXPECT_EQ(config.sourceFolder, newSource);
 
-    EXPECT_EQ(config.destinationFolder, newDestination);
+  EXPECT_EQ(config.destinationFolder, newDestination);
 }
 
-TEST_F(ApiServerTest, PutConfigPersistsConfiguration)
-{
-    const auto newSource = testDirectory / "persistent_source";
+TEST_F(ApiServerTest, PutConfigPersistsConfiguration) {
+  const auto newSource = testDirectory / "persistent_source";
 
-    const auto newDestination = testDirectory / "persistent_destination";
+  const auto newDestination = testDirectory / "persistent_destination";
 
-    std::filesystem::create_directories(newSource);
+  std::filesystem::create_directories(newSource);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Put);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Put);
+  request->setPath("/api/config");
 
-    Json::Value body;
+  Json::Value body;
 
-    body["sourceFolder"] = newSource.string();
+  body["sourceFolder"] = newSource.string();
 
-    body["destinationFolder"] = newDestination.string();
+  body["destinationFolder"] = newDestination.string();
 
-    request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+  request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
 
-    request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
+  request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    ASSERT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  ASSERT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    Logger reloadedLogger(testDirectory / "reload.log");
+  Logger reloadedLogger(testDirectory / "reload.log");
 
-    ConfigManager reloadedManager(testDirectory / "config.json", reloadedLogger);
+  ConfigManager reloadedManager(testDirectory / "config.json", reloadedLogger);
 
-    ASSERT_TRUE(reloadedManager.initialize());
+  ASSERT_TRUE(reloadedManager.initialize());
 
-    const Config& reloadedConfig = reloadedManager.getConfig();
+  const Config& reloadedConfig = reloadedManager.getConfig();
 
-    EXPECT_EQ(reloadedConfig.sourceFolder, newSource);
+  EXPECT_EQ(reloadedConfig.sourceFolder, newSource);
 
-    EXPECT_EQ(reloadedConfig.destinationFolder, newDestination);
+  EXPECT_EQ(reloadedConfig.destinationFolder, newDestination);
 }
 
-TEST_F(ApiServerTest, PutConfigRejectsMissingSourceFolder)
-{
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+TEST_F(ApiServerTest, PutConfigRejectsMissingSourceFolder) {
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Put);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Put);
+  request->setPath("/api/config");
 
-    Json::Value body;
+  Json::Value body;
 
-    body["destinationFolder"] = (testDirectory / "destination").string();
+  body["destinationFolder"] = (testDirectory / "destination").string();
 
-    request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+  request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
 
-    request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
+  request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["error"].asString(), "sourceFolder and destinationFolder are required.");
+  EXPECT_EQ((*json)["error"].asString(), "sourceFolder and destinationFolder are required.");
 }
 
-TEST_F(ApiServerTest, PutConfigRejectsMissingDestinationFolder)
-{
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+TEST_F(ApiServerTest, PutConfigRejectsMissingDestinationFolder) {
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Put);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Put);
+  request->setPath("/api/config");
 
-    Json::Value body;
+  Json::Value body;
 
-    body["sourceFolder"] = (testDirectory / "source").string();
+  body["sourceFolder"] = (testDirectory / "source").string();
 
-    request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+  request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
 
-    request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
+  request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["error"].asString(), "sourceFolder and destinationFolder are required.");
+  EXPECT_EQ((*json)["error"].asString(), "sourceFolder and destinationFolder are required.");
 }
 
-TEST_F(ApiServerTest, PutConfigRejectsNonexistentSourceFolder)
-{
-    const auto missingSource = testDirectory / "missing_source";
+TEST_F(ApiServerTest, PutConfigRejectsNonexistentSourceFolder) {
+  const auto missingSource = testDirectory / "missing_source";
 
-    const auto destination = testDirectory / "destination";
+  const auto destination = testDirectory / "destination";
 
-    ASSERT_FALSE(std::filesystem::exists(missingSource));
+  ASSERT_FALSE(std::filesystem::exists(missingSource));
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Put);
-    request->setPath("/api/config");
+  request->setMethod(drogon::Put);
+  request->setPath("/api/config");
 
-    Json::Value body;
+  Json::Value body;
 
-    body["sourceFolder"] = missingSource.string();
+  body["sourceFolder"] = missingSource.string();
 
-    body["destinationFolder"] = destination.string();
+  body["destinationFolder"] = destination.string();
 
-    request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+  request->setContentTypeCode(drogon::CT_APPLICATION_JSON);
 
-    request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
+  request->setBody(Json::writeString(Json::StreamWriterBuilder(), body));
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k400BadRequest);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["error"].asString(), "Invalid configuration.");
+  EXPECT_EQ((*json)["error"].asString(), "Invalid configuration.");
 }
 
-TEST_F(ApiServerTest, StartSortingReturnsRunning)
-{
-    // Make sure this test does not inherit
-    // the blocking state from another test.
-    holdSorting.store(false);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, StartSortingReturnsRunning) {
+  // Make sure this test does not inherit
+  // the blocking state from another test.
+  holdSorting.store(false);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Post);
-    request->setPath("/api/sorting/start");
+  request->setMethod(drogon::Post);
+  request->setPath("/api/sorting/start");
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_EQ((*json)["status"].asString(), "running");
+  EXPECT_EQ((*json)["status"].asString(), "running");
 
-    // The fake operation completes immediately.
-    // Wait until the controller reaches Completed
-    // before another test tries to start sorting.
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Completed)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  // The fake operation completes immediately.
+  // Wait until the controller reaches Completed
+  // before another test tries to start sorting.
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Completed) {
+      break;
     }
 
-    EXPECT_EQ(sortingController->getStatus(), SortingStatus::Completed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  EXPECT_EQ(sortingController->getStatus(), SortingStatus::Completed);
 }
 
-TEST_F(ApiServerTest, StartSortingReturnsConflictWhenAlreadyRunning)
-{
-    holdSorting.store(true);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, StartSortingReturnsConflictWhenAlreadyRunning) {
+  holdSorting.store(true);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Post);
-    request->setPath("/api/sorting/start");
+  request->setMethod(drogon::Post);
+  request->setPath("/api/sorting/start");
 
-    // First request starts sorting.
-    auto firstResult = client->sendRequest(request);
+  // First request starts sorting.
+  auto firstResult = client->sendRequest(request);
 
-    ASSERT_EQ(firstResult.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(firstResult.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(firstResult.second, nullptr);
+  ASSERT_NE(firstResult.second, nullptr);
 
-    EXPECT_EQ(firstResult.second->getStatusCode(), drogon::k200OK);
+  EXPECT_EQ(firstResult.second->getStatusCode(), drogon::k200OK);
 
-    // Make sure the background sorting operation
-    // has actually started before sending the second request.
-    for (int i = 0; i < 100 && !sortingStarted.load(); ++i)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  // Make sure the background sorting operation
+  // has actually started before sending the second request.
+  for (int i = 0; i < 100 && !sortingStarted.load(); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  ASSERT_TRUE(sortingStarted.load());
+
+  // Second request must be rejected.
+  auto secondRequest = drogon::HttpRequest::newHttpRequest();
+
+  secondRequest->setMethod(drogon::Post);
+  secondRequest->setPath("/api/sorting/start");
+
+  auto secondResult = client->sendRequest(secondRequest);
+
+  ASSERT_EQ(secondResult.first, drogon::ReqResult::Ok);
+
+  ASSERT_NE(secondResult.second, nullptr);
+
+  EXPECT_EQ(secondResult.second->getStatusCode(), drogon::k409Conflict);
+
+  const auto json = secondResult.second->getJsonObject();
+
+  ASSERT_NE(json, nullptr);
+
+  EXPECT_EQ((*json)["error"].asString(), "Sorting is already running.");
+
+  // Allow the first sorting operation to finish.
+  holdSorting.store(false);
+
+  // Wait for the worker thread to complete.
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Completed) {
+      break;
     }
 
-    ASSERT_TRUE(sortingStarted.load());
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    // Second request must be rejected.
-    auto secondRequest = drogon::HttpRequest::newHttpRequest();
-
-    secondRequest->setMethod(drogon::Post);
-    secondRequest->setPath("/api/sorting/start");
-
-    auto secondResult = client->sendRequest(secondRequest);
-
-    ASSERT_EQ(secondResult.first, drogon::ReqResult::Ok);
-
-    ASSERT_NE(secondResult.second, nullptr);
-
-    EXPECT_EQ(secondResult.second->getStatusCode(), drogon::k409Conflict);
-
-    const auto json = secondResult.second->getJsonObject();
-
-    ASSERT_NE(json, nullptr);
-
-    EXPECT_EQ((*json)["error"].asString(), "Sorting is already running.");
-
-    // Allow the first sorting operation to finish.
-    holdSorting.store(false);
-
-    // Wait for the worker thread to complete.
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Completed)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    EXPECT_EQ(sortingController->getStatus(), SortingStatus::Completed);
+  EXPECT_EQ(sortingController->getStatus(), SortingStatus::Completed);
 }
 
-TEST_F(ApiServerTest, GetSortingStatusReturnsCompleted)
-{
-    // Start sorting with the fake operation.
-    holdSorting.store(false);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, GetSortingStatusReturnsCompleted) {
+  // Start sorting with the fake operation.
+  holdSorting.store(false);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto startRequest = drogon::HttpRequest::newHttpRequest();
+  auto startRequest = drogon::HttpRequest::newHttpRequest();
 
-    startRequest->setMethod(drogon::Post);
-    startRequest->setPath("/api/sorting/start");
+  startRequest->setMethod(drogon::Post);
+  startRequest->setPath("/api/sorting/start");
 
-    auto startResult = client->sendRequest(startRequest);
+  auto startResult = client->sendRequest(startRequest);
 
-    ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(startResult.second, nullptr);
+  ASSERT_NE(startResult.second, nullptr);
 
-    ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
 
-    // Wait for the background operation to finish.
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Completed)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  // Wait for the background operation to finish.
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Completed) {
+      break;
     }
 
-    ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    // Now query the API.
-    auto statusRequest = drogon::HttpRequest::newHttpRequest();
+  ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
 
-    statusRequest->setMethod(drogon::Get);
-    statusRequest->setPath("/api/sorting/status");
+  // Now query the API.
+  auto statusRequest = drogon::HttpRequest::newHttpRequest();
 
-    auto statusResult = client->sendRequest(statusRequest);
+  statusRequest->setMethod(drogon::Get);
+  statusRequest->setPath("/api/sorting/status");
 
-    ASSERT_EQ(statusResult.first, drogon::ReqResult::Ok);
+  auto statusResult = client->sendRequest(statusRequest);
 
-    ASSERT_NE(statusResult.second, nullptr);
+  ASSERT_EQ(statusResult.first, drogon::ReqResult::Ok);
 
-    EXPECT_EQ(statusResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_NE(statusResult.second, nullptr);
 
-    const auto json = statusResult.second->getJsonObject();
+  EXPECT_EQ(statusResult.second->getStatusCode(), drogon::k200OK);
 
-    ASSERT_NE(json, nullptr);
+  const auto json = statusResult.second->getJsonObject();
 
-    EXPECT_EQ((*json)["status"].asString(), "completed");
+  ASSERT_NE(json, nullptr);
+
+  EXPECT_EQ((*json)["status"].asString(), "completed");
 }
 
-TEST_F(ApiServerTest, GetSortingProgressReturnsProgress)
-{
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+TEST_F(ApiServerTest, GetSortingProgressReturnsProgress) {
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    request->setMethod(drogon::Get);
-    request->setPath("/api/sorting/progress");
+  request->setMethod(drogon::Get);
+  request->setPath("/api/sorting/progress");
 
-    auto result = client->sendRequest(request);
+  auto result = client->sendRequest(request);
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    const auto json = result.second->getJsonObject();
+  const auto json = result.second->getJsonObject();
 
-    ASSERT_NE(json, nullptr);
+  ASSERT_NE(json, nullptr);
 
-    EXPECT_TRUE(json->isMember("totalFiles"));
+  EXPECT_TRUE(json->isMember("totalFiles"));
 
-    EXPECT_TRUE(json->isMember("processedFiles"));
+  EXPECT_TRUE(json->isMember("processedFiles"));
 
-    EXPECT_TRUE(json->isMember("skippedFiles"));
+  EXPECT_TRUE(json->isMember("skippedFiles"));
 
-    EXPECT_TRUE(json->isMember("failedFiles"));
+  EXPECT_TRUE(json->isMember("failedFiles"));
 
-    EXPECT_TRUE(json->isMember("currentFile"));
+  EXPECT_TRUE(json->isMember("currentFile"));
 
-    EXPECT_TRUE(json->isMember("percentage"));
+  EXPECT_TRUE(json->isMember("percentage"));
 }
 
-TEST_F(ApiServerTest, SortingProgressStreamClosesWhenSortingCompletes)
-{
-    holdSorting.store(false);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, SortingProgressStreamClosesWhenSortingCompletes) {
+  holdSorting.store(false);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    auto startRequest = drogon::HttpRequest::newHttpRequest();
+  auto startRequest = drogon::HttpRequest::newHttpRequest();
 
-    startRequest->setMethod(drogon::Post);
-    startRequest->setPath("/api/sorting/start");
+  startRequest->setMethod(drogon::Post);
+  startRequest->setPath("/api/sorting/start");
 
-    auto startResult = client->sendRequest(startRequest);
+  auto startResult = client->sendRequest(startRequest);
 
-    ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(startResult.second, nullptr);
+  ASSERT_NE(startResult.second, nullptr);
 
-    ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
 
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Completed)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Completed) {
+      break;
     }
 
-    ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
 
-    request->setMethod(drogon::Get);
-    request->setPath("/api/sorting/progress/stream");
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    auto result = client->sendRequest(request);
+  request->setMethod(drogon::Get);
+  request->setPath("/api/sorting/progress/stream");
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  auto result = client->sendRequest(request);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
+  ASSERT_NE(result.second, nullptr);
 
-    EXPECT_EQ(result.second->getHeader("Content-Type"), "text/event-stream");
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k200OK);
 
-    const std::string_view body = result.second->getBody();
+  EXPECT_EQ(result.second->getHeader("Content-Type"), "text/event-stream");
 
-    EXPECT_NE(body.find("data:"), std::string::npos);
+  const std::string_view body = result.second->getBody();
+
+  EXPECT_NE(body.find("data:"), std::string::npos);
 }
 
-TEST_F(ApiServerTest, CancelSortingReturnsCancelling)
-{
-    holdSorting.store(true);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, CancelSortingReturnsCancelling) {
+  holdSorting.store(true);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    // Start sorting.
-    auto startRequest = drogon::HttpRequest::newHttpRequest();
+  // Start sorting.
+  auto startRequest = drogon::HttpRequest::newHttpRequest();
 
-    startRequest->setMethod(drogon::Post);
-    startRequest->setPath("/api/sorting/start");
+  startRequest->setMethod(drogon::Post);
+  startRequest->setPath("/api/sorting/start");
 
-    auto startResult = client->sendRequest(startRequest);
+  auto startResult = client->sendRequest(startRequest);
 
-    ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(startResult.second, nullptr);
+  ASSERT_NE(startResult.second, nullptr);
 
-    ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
 
-    // Wait until the worker is actually running.
-    for (int i = 0; i < 100 && !sortingStarted.load(); ++i)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  // Wait until the worker is actually running.
+  for (int i = 0; i < 100 && !sortingStarted.load(); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  ASSERT_TRUE(sortingStarted.load());
+
+  // Request cancellation.
+  auto cancelRequest = drogon::HttpRequest::newHttpRequest();
+
+  cancelRequest->setMethod(drogon::Post);
+  cancelRequest->setPath("/api/sorting/cancel");
+
+  auto cancelResult = client->sendRequest(cancelRequest);
+
+  ASSERT_EQ(cancelResult.first, drogon::ReqResult::Ok);
+
+  ASSERT_NE(cancelResult.second, nullptr);
+
+  EXPECT_EQ(cancelResult.second->getStatusCode(), drogon::k200OK);
+
+  const auto json = cancelResult.second->getJsonObject();
+
+  ASSERT_NE(json, nullptr);
+
+  EXPECT_EQ((*json)["status"].asString(), "cancelling");
+
+  // Release the fake sorting operation.
+  holdSorting.store(false);
+
+  // Wait for cancellation to propagate.
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Cancelled) {
+      break;
     }
 
-    ASSERT_TRUE(sortingStarted.load());
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    // Request cancellation.
-    auto cancelRequest = drogon::HttpRequest::newHttpRequest();
-
-    cancelRequest->setMethod(drogon::Post);
-    cancelRequest->setPath("/api/sorting/cancel");
-
-    auto cancelResult = client->sendRequest(cancelRequest);
-
-    ASSERT_EQ(cancelResult.first, drogon::ReqResult::Ok);
-
-    ASSERT_NE(cancelResult.second, nullptr);
-
-    EXPECT_EQ(cancelResult.second->getStatusCode(), drogon::k200OK);
-
-    const auto json = cancelResult.second->getJsonObject();
-
-    ASSERT_NE(json, nullptr);
-
-    EXPECT_EQ((*json)["status"].asString(), "cancelling");
-
-    // Release the fake sorting operation.
-    holdSorting.store(false);
-
-    // Wait for cancellation to propagate.
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Cancelled)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    EXPECT_EQ(sortingController->getStatus(), SortingStatus::Cancelled);
+  EXPECT_EQ(sortingController->getStatus(), SortingStatus::Cancelled);
 }
 
-TEST_F(ApiServerTest, CancelSortingReturnsConflictWhenNotRunning)
-{
-    holdSorting.store(false);
+TEST_F(ApiServerTest, CancelSortingReturnsConflictWhenNotRunning) {
+  holdSorting.store(false);
 
-    // Make sure any previous worker has finished.
-    for (int i = 0; i < 100; ++i)
-    {
-        const SortingStatus status = sortingController->getStatus();
+  // Make sure any previous worker has finished.
+  for (int i = 0; i < 100; ++i) {
+    const SortingStatus status = sortingController->getStatus();
 
-        if (status != SortingStatus::Running && status != SortingStatus::Cancelling)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (status != SortingStatus::Running && status != SortingStatus::Cancelling) {
+      break;
     }
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    auto request = drogon::HttpRequest::newHttpRequest();
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    request->setMethod(drogon::Post);
-    request->setPath("/api/sorting/cancel");
+  auto request = drogon::HttpRequest::newHttpRequest();
 
-    auto result = client->sendRequest(request);
+  request->setMethod(drogon::Post);
+  request->setPath("/api/sorting/cancel");
 
-    ASSERT_EQ(result.first, drogon::ReqResult::Ok);
+  auto result = client->sendRequest(request);
 
-    ASSERT_NE(result.second, nullptr);
+  ASSERT_EQ(result.first, drogon::ReqResult::Ok);
 
-    EXPECT_EQ(result.second->getStatusCode(), drogon::k409Conflict);
+  ASSERT_NE(result.second, nullptr);
 
-    const auto json = result.second->getJsonObject();
+  EXPECT_EQ(result.second->getStatusCode(), drogon::k409Conflict);
 
-    ASSERT_NE(json, nullptr);
+  const auto json = result.second->getJsonObject();
 
-    EXPECT_EQ((*json)["error"].asString(), "Sorting is not running.");
+  ASSERT_NE(json, nullptr);
+
+  EXPECT_EQ((*json)["error"].asString(), "Sorting is not running.");
 }
 
-TEST_F(ApiServerTest, SortingWorkflowCompletesSuccessfully)
-{
-    holdSorting.store(false);
-    sortingStarted.store(false);
+TEST_F(ApiServerTest, SortingWorkflowCompletesSuccessfully) {
+  holdSorting.store(false);
+  sortingStarted.store(false);
 
-    auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
 
-    // 1. Start sorting.
-    auto startRequest = drogon::HttpRequest::newHttpRequest();
+  // 1. Start sorting.
+  auto startRequest = drogon::HttpRequest::newHttpRequest();
 
-    startRequest->setMethod(drogon::Post);
-    startRequest->setPath("/api/sorting/start");
+  startRequest->setMethod(drogon::Post);
+  startRequest->setPath("/api/sorting/start");
 
-    auto startResult = client->sendRequest(startRequest);
+  auto startResult = client->sendRequest(startRequest);
 
-    ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
+  ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
 
-    ASSERT_NE(startResult.second, nullptr);
+  ASSERT_NE(startResult.second, nullptr);
 
-    ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
 
-    // 2. Wait for the background operation to complete.
-    for (int i = 0; i < 100; ++i)
-    {
-        if (sortingController->getStatus() == SortingStatus::Completed)
-        {
-            break;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  // 2. Wait for the background operation to complete.
+  for (int i = 0; i < 100; ++i) {
+    if (sortingController->getStatus() == SortingStatus::Completed) {
+      break;
     }
 
-    ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-    // 3. Query sorting status through the API.
-    auto statusRequest = drogon::HttpRequest::newHttpRequest();
+  ASSERT_EQ(sortingController->getStatus(), SortingStatus::Completed);
 
-    statusRequest->setMethod(drogon::Get);
-    statusRequest->setPath("/api/sorting/status");
+  // 3. Query sorting status through the API.
+  auto statusRequest = drogon::HttpRequest::newHttpRequest();
 
-    auto statusResult = client->sendRequest(statusRequest);
+  statusRequest->setMethod(drogon::Get);
+  statusRequest->setPath("/api/sorting/status");
 
-    ASSERT_EQ(statusResult.first, drogon::ReqResult::Ok);
+  auto statusResult = client->sendRequest(statusRequest);
 
-    ASSERT_NE(statusResult.second, nullptr);
+  ASSERT_EQ(statusResult.first, drogon::ReqResult::Ok);
 
-    EXPECT_EQ(statusResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_NE(statusResult.second, nullptr);
 
-    const auto statusJson = statusResult.second->getJsonObject();
+  EXPECT_EQ(statusResult.second->getStatusCode(), drogon::k200OK);
 
-    ASSERT_NE(statusJson, nullptr);
+  const auto statusJson = statusResult.second->getJsonObject();
 
-    EXPECT_EQ((*statusJson)["status"].asString(), "completed");
+  ASSERT_NE(statusJson, nullptr);
 
-    // 4. Query progress through the API.
-    auto progressRequest = drogon::HttpRequest::newHttpRequest();
+  EXPECT_EQ((*statusJson)["status"].asString(), "completed");
 
-    progressRequest->setMethod(drogon::Get);
-    progressRequest->setPath("/api/sorting/progress");
+  // 4. Query progress through the API.
+  auto progressRequest = drogon::HttpRequest::newHttpRequest();
 
-    auto progressResult = client->sendRequest(progressRequest);
+  progressRequest->setMethod(drogon::Get);
+  progressRequest->setPath("/api/sorting/progress");
 
-    ASSERT_EQ(progressResult.first, drogon::ReqResult::Ok);
+  auto progressResult = client->sendRequest(progressRequest);
 
-    ASSERT_NE(progressResult.second, nullptr);
+  ASSERT_EQ(progressResult.first, drogon::ReqResult::Ok);
 
-    EXPECT_EQ(progressResult.second->getStatusCode(), drogon::k200OK);
+  ASSERT_NE(progressResult.second, nullptr);
 
-    const auto progressJson = progressResult.second->getJsonObject();
+  EXPECT_EQ(progressResult.second->getStatusCode(), drogon::k200OK);
 
-    ASSERT_NE(progressJson, nullptr);
+  const auto progressJson = progressResult.second->getJsonObject();
 
-    EXPECT_TRUE(progressJson->isMember("totalFiles"));
+  ASSERT_NE(progressJson, nullptr);
 
-    EXPECT_TRUE(progressJson->isMember("processedFiles"));
+  EXPECT_TRUE(progressJson->isMember("totalFiles"));
 
-    EXPECT_TRUE(progressJson->isMember("skippedFiles"));
+  EXPECT_TRUE(progressJson->isMember("processedFiles"));
 
-    EXPECT_TRUE(progressJson->isMember("failedFiles"));
+  EXPECT_TRUE(progressJson->isMember("skippedFiles"));
 
-    EXPECT_TRUE(progressJson->isMember("currentFile"));
+  EXPECT_TRUE(progressJson->isMember("failedFiles"));
 
-    EXPECT_TRUE(progressJson->isMember("percentage"));
+  EXPECT_TRUE(progressJson->isMember("currentFile"));
+
+  EXPECT_TRUE(progressJson->isMember("percentage"));
+}
+
+TEST_F(ApiServerTest, SortingProgressStreamClosesWhenSortingIsCancelled) {
+  holdSorting.store(true);
+  sortingStarted.store(false);
+
+  struct SortingRelease {
+    ~SortingRelease() {
+      ApiServerTest::holdSorting.store(false);
+    }
+  } sortingRelease;
+
+  auto client = drogon::HttpClient::newHttpClient("http://127.0.0.1:" + std::to_string(port));
+
+  auto startRequest = drogon::HttpRequest::newHttpRequest();
+
+  startRequest->setMethod(drogon::Post);
+  startRequest->setPath("/api/sorting/start");
+
+  auto startResult = client->sendRequest(startRequest);
+
+  ASSERT_EQ(startResult.first, drogon::ReqResult::Ok);
+
+  ASSERT_NE(startResult.second, nullptr);
+
+  ASSERT_EQ(startResult.second->getStatusCode(), drogon::k200OK);
+
+  for (int i = 0; i < 100 && !sortingStarted.load(); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  ASSERT_TRUE(sortingStarted.load());
+  ASSERT_EQ(sortingController->getStatus(), SortingStatus::Running);
+
+  struct Socket {
+    int fd;
+    ~Socket() {
+      if (fd >= 0) {
+        ::close(fd);
+      }
+    }
+  } streamSocket{::socket(AF_INET, SOCK_STREAM, 0)};
+
+  ASSERT_GE(streamSocket.fd, 0);
+
+  timeval receiveTimeout{0, 250000};
+  ASSERT_EQ(::setsockopt(streamSocket.fd, SOL_SOCKET, SO_RCVTIMEO, &receiveTimeout,
+                         sizeof(receiveTimeout)),
+            0);
+
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_port = htons(port);
+  ASSERT_EQ(::inet_pton(AF_INET, "127.0.0.1", &address.sin_addr), 1);
+  ASSERT_EQ(
+      ::connect(streamSocket.fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)), 0);
+
+  const std::string streamRequest =
+      "GET /api/sorting/progress/stream HTTP/1.1\r\n"
+      "Host: 127.0.0.1\r\n"
+      "Connection: keep-alive\r\n\r\n";
+  ASSERT_EQ(::send(streamSocket.fd, streamRequest.data(), streamRequest.size(), 0),
+            static_cast<ssize_t>(streamRequest.size()));
+
+  std::string response;
+  auto receiveUntil = [&](const std::string& marker) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (response.find(marker) == std::string::npos &&
+           std::chrono::steady_clock::now() < deadline) {
+      char buffer[4096];
+      const auto received = ::recv(streamSocket.fd, buffer, sizeof(buffer), 0);
+      if (received > 0) {
+        response.append(buffer, static_cast<std::size_t>(received));
+      } else if (received == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+        break;
+      }
+    }
+    return response.find(marker) != std::string::npos;
+  };
+
+  ASSERT_TRUE(receiveUntil("data:"));
+  ASSERT_NE(response.find("HTTP/1.1 200"), std::string::npos);
+  ASSERT_EQ(response.find("\r\n0\r\n\r\n"), std::string::npos);
+  ASSERT_EQ(sortingController->getStatus(), SortingStatus::Running);
+
+  auto cancelRequest = drogon::HttpRequest::newHttpRequest();
+  cancelRequest->setMethod(drogon::Post);
+  cancelRequest->setPath("/api/sorting/cancel");
+  const auto cancelResult = client->sendRequest(cancelRequest, 3.0);
+  ASSERT_EQ(cancelResult.first, drogon::ReqResult::Ok);
+  ASSERT_NE(cancelResult.second, nullptr);
+  EXPECT_EQ(cancelResult.second->getStatusCode(), drogon::k200OK);
+
+  EXPECT_TRUE(receiveUntil("\r\n0\r\n\r\n"));
+  EXPECT_EQ(sortingController->getStatus(), SortingStatus::Cancelled);
 }

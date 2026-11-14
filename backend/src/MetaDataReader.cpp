@@ -1,118 +1,103 @@
 #include "MetaDataReader.hpp"
 
-#include "Process.hpp"
-
 #include <array>
 #include <cstdio>
 #include <iomanip>
 #include <sstream>
 #include <vector>
 
-namespace
-{
+#include "Process.hpp"
+
+namespace {
 const std::vector<std::string> DATE_TAGS = {"DateTimeOriginal", "CreateDate", "MediaCreateDate",
                                             "CreationDate", "ModifyDate"};
 }
 
 MetaDataReader::MetaDataReader(const Config& config, Logger& logger)
-    : config_(config), logger_(logger)
-{
+    : config_(config), logger_(logger) {}
+
+std::optional<std::chrono::system_clock::time_point> MetaDataReader::parseCaptureDate(
+    const std::string& output) const {
+  std::istringstream input(output);
+
+  std::string line;
+
+  while (std::getline(input, line)) {
+    if (line.empty()) {
+      continue;
+    }
+
+    std::tm tm = {};
+
+    std::istringstream stream(line);
+
+    stream >> std::get_time(&tm, "%Y:%m:%d %H:%M:%S");
+
+    if (!stream.fail()) {
+      std::time_t time = std::mktime(&tm);
+
+      return std::chrono::system_clock::from_time_t(time);
+    }
+  }
+
+  return std::nullopt;
 }
 
-std::optional<std::chrono::system_clock::time_point>
-MetaDataReader::parseCaptureDate(const std::string& output) const
-{
-    std::istringstream input(output);
+std::optional<std::chrono::system_clock::time_point> MetaDataReader::getCaptureDate(
+    const std::filesystem::path& file) const {
+  logger_.debug("Reading metadata: " + file.filename().string());
 
-    std::string line;
+  std::ostringstream command;
 
-    while (std::getline(input, line))
-    {
-        if (line.empty())
-        {
-            continue;
-        }
+  command << "\"" << config_.exifToolPath.string() << "\" -s3 ";
 
-        std::tm tm = {};
+  for (const auto& tag : DATE_TAGS) {
+    command << "-" << tag << " ";
+  }
 
-        std::istringstream stream(line);
+  command << "\"" << file.string() << "\"";
 
-        stream >> std::get_time(&tm, "%Y:%m:%d %H:%M:%S");
+  std::array<char, 256> buffer;
 
-        if (!stream.fail())
-        {
-            std::time_t time = std::mktime(&tm);
+  std::string result;
 
-            return std::chrono::system_clock::from_time_t(time);
-        }
-    }
+  std::string commandString = command.str();
+
+  FILE* pipe = blaze_popen(commandString.c_str(), "r");
+
+  if (!pipe) {
+    logger_.error("Failed to start ExifTool: " + file.filename().string());
 
     return std::nullopt;
-}
+  }
 
-std::optional<std::chrono::system_clock::time_point>
-MetaDataReader::getCaptureDate(const std::filesystem::path& file) const
-{
-    logger_.debug("Reading metadata: " + file.filename().string());
+  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+    result += buffer.data();
+  }
 
-    std::ostringstream command;
+  int exitCode = blaze_pclose(pipe);
 
-    command << "\"" << config_.exifToolPath.string() << "\" -s3 ";
+  if (exitCode != 0) {
+    logger_.error("ExifTool failed for: " + file.filename().string());
 
-    for (const auto& tag : DATE_TAGS)
-    {
-        command << "-" << tag << " ";
-    }
+    return std::nullopt;
+  }
 
-    command << "\"" << file.string() << "\"";
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
+  }
 
-    std::array<char, 256> buffer;
+  if (result.empty()) {
+    logger_.warning("No capture date found for: " + file.filename().string());
 
-    std::string result;
+    return std::nullopt;
+  }
 
-    std::string commandString = command.str();
+  auto captureDate = parseCaptureDate(result);
 
-    FILE* pipe = blaze_popen(commandString.c_str(), "r");
+  if (!captureDate) {
+    logger_.warning("Unable to parse capture date for: " + file.filename().string());
+  }
 
-    if (!pipe)
-    {
-        logger_.error("Failed to start ExifTool: " + file.filename().string());
-
-        return std::nullopt;
-    }
-
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
-    {
-        result += buffer.data();
-    }
-
-    int exitCode = blaze_pclose(pipe);
-
-    if (exitCode != 0)
-    {
-        logger_.error("ExifTool failed for: " + file.filename().string());
-
-        return std::nullopt;
-    }
-
-    if (!result.empty() && result.back() == '\n')
-    {
-        result.pop_back();
-    }
-
-    if (result.empty())
-    {
-        logger_.warning("No capture date found for: " + file.filename().string());
-
-        return std::nullopt;
-    }
-
-    auto captureDate = parseCaptureDate(result);
-
-    if (!captureDate)
-    {
-        logger_.warning("Unable to parse capture date for: " + file.filename().string());
-    }
-
-    return captureDate;
+  return captureDate;
 }

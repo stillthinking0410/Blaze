@@ -1,21 +1,23 @@
 
-BasedOnStyle: LLVM
+BasedOnStyle: Google
 
-IndentWidth: 4
-TabWidth: 4
+# Indentation
+IndentWidth: 2
+TabWidth: 2
 UseTab: Never
 
+# Line length
 ColumnLimit: 100
 
-BreakBeforeBraces: Allman
-
-PointerAlignment: Left
-DerivePointerAlignment: false
-
-SortIncludes: true
-
-AllowShortFunctionsOnASingleLine: Empty
+# Braces and formatting
+BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
 
-SpaceBeforeParens: ControlStatements
+# Pointers and references
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Include management
+SortIncludes: true

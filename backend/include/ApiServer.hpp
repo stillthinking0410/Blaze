@@ -1,5 +1,7 @@
 #pragma once
 
+#include <drogon/drogon.h>
+
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -8,57 +10,49 @@
 #include <thread>
 #include <vector>
 
-#include <drogon/drogon.h>
-
 #include "ConfigManager.hpp"
 #include "SortingController.hpp"
 
-class ApiServer
-{
-    struct WorkerRecord
+class ApiServer {
+  struct WorkerRecord {
+    std::thread thread;
+    std::atomic_bool stopRequested{false};
+    std::atomic_bool finished{false};
+  };
+
+ public:
+  ApiServer(ConfigManager& configManager, SortingController& sortingController);
+
+  ~ApiServer() {
+    std::vector<std::unique_ptr<WorkerRecord>> workers;
+
     {
-        std::thread thread;
-        std::atomic_bool stopRequested{false};
-        std::atomic_bool finished{false};
-    };
+      std::lock_guard<std::mutex> lock(workerMutex_);
+      shuttingDown_.store(true);
 
-  public:
-    ApiServer(ConfigManager& configManager, SortingController& sortingController);
+      for (const auto& worker : workers_) {
+        worker->stopRequested.store(true);
+      }
 
-    ~ApiServer()
-    {
-        std::vector<std::unique_ptr<WorkerRecord>> workers;
-
-        {
-            std::lock_guard<std::mutex> lock(workerMutex_);
-            shuttingDown_.store(true);
-
-            for (const auto& worker : workers_)
-            {
-                worker->stopRequested.store(true);
-            }
-
-            workers.swap(workers_);
-        }
-
-        for (const auto& worker : workers)
-        {
-            if (worker->thread.joinable())
-            {
-                worker->thread.join();
-            }
-        }
+      workers.swap(workers_);
     }
 
-    void start(const std::string& host, uint16_t port);
+    for (const auto& worker : workers) {
+      if (worker->thread.joinable()) {
+        worker->thread.join();
+      }
+    }
+  }
 
-  private:
-    void registerRoutes();
+  void start(const std::string& host, uint16_t port);
 
-    ConfigManager& configManager_;
-    SortingController& sortingController_;
+ private:
+  void registerRoutes();
 
-    std::atomic_bool shuttingDown_{false};
-    std::mutex workerMutex_;
-    std::vector<std::unique_ptr<WorkerRecord>> workers_;
+  ConfigManager& configManager_;
+  SortingController& sortingController_;
+
+  std::atomic_bool shuttingDown_{false};
+  std::mutex workerMutex_;
+  std::vector<std::unique_ptr<WorkerRecord>> workers_;
 };

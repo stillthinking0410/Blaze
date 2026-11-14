@@ -17,27 +17,26 @@ using ProgressCallback = std::function<void(const ProgressInfo&)>;
 
 using CancellationCallback = std::function<bool()>;
 
-class SortEngine
-{
-  public:
-    explicit SortEngine(const Config& config, Logger& logger);
+class SortEngine {
+ public:
+  explicit SortEngine(const Config& config, Logger& logger);
 
-    bool run(const std::filesystem::path& sourceFolder,
-             const std::filesystem::path& destinationFolder, ProgressCallback callback = nullptr,
-             CancellationCallback cancellationCallback = nullptr);
+  bool run(const std::filesystem::path& sourceFolder,
+           const std::filesystem::path& destinationFolder, ProgressCallback callback = nullptr,
+           CancellationCallback cancellationCallback = nullptr);
 
-  private:
-    Logger& logger_;
+ private:
+  Logger& logger_;
 
-    Scanner scanner_;
+  Scanner scanner_;
 
-    MetaDataReader metadataReader_;
+  MetaDataReader metadataReader_;
 
-    DestinationPathGenerator destinationGenerator_;
+  DestinationPathGenerator destinationGenerator_;
 
-    FileCopier fileCopier_;
+  FileCopier fileCopier_;
 
-    HashGenerator hashGenerator_;
+  HashGenerator hashGenerator_;
 
-    Database database_;
+  Database database_;
 };

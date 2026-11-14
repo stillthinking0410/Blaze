@@ -12,5 +12,3 @@ WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
 
 FormatStyle: file
-
-InheritParentConfig: false

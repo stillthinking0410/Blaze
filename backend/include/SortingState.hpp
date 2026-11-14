@@ -7,46 +7,44 @@
 
 #include "Models.hpp"
 
-enum class SortingStatus
-{
-    Idle,
-    Running,
-    Cancelling,
-    Completed,
-    CompletedWithErrors,
-    Failed,
-    Cancelled
+enum class SortingStatus {
+  Idle,
+  Running,
+  Cancelling,
+  Completed,
+  CompletedWithErrors,
+  Failed,
+  Cancelled
 };
 
-class SortingState
-{
-  public:
-    SortingState();
+class SortingState {
+ public:
+  SortingState();
 
-    void start();
+  void start();
 
-    void requestCancellation();
+  void requestCancellation();
 
-    bool isCancellationRequested() const;
+  bool isCancellationRequested() const;
 
-    void updateProgress(const ProgressInfo& progress);
+  void updateProgress(const ProgressInfo& progress);
 
-    void complete();
+  void complete();
 
-    void fail();
+  void fail();
 
-    void cancel();
+  void cancel();
 
-    SortingStatus getStatus() const;
+  SortingStatus getStatus() const;
 
-    ProgressInfo getProgress() const;
+  ProgressInfo getProgress() const;
 
-  private:
-    std::atomic<SortingStatus> status_;
+ private:
+  std::atomic<SortingStatus> status_;
 
-    std::atomic<bool> cancellationRequested_;
+  std::atomic<bool> cancellationRequested_;
 
-    mutable std::mutex progressMutex_;
+  mutable std::mutex progressMutex_;
 
-    ProgressInfo progress_;
+  ProgressInfo progress_;
 };
