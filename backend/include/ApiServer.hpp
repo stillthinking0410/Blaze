@@ -24,30 +24,15 @@ class ApiServer {
   ApiServer(ConfigManager& configManager, SortingController& sortingController);
 
   ~ApiServer() {
-    std::vector<std::unique_ptr<WorkerRecord>> workers;
-
-    {
-      std::lock_guard<std::mutex> lock(workerMutex_);
-      shuttingDown_.store(true);
-
-      for (const auto& worker : workers_) {
-        worker->stopRequested.store(true);
-      }
-
-      workers.swap(workers_);
-    }
-
-    for (const auto& worker : workers) {
-      if (worker->thread.joinable()) {
-        worker->thread.join();
-      }
-    }
+    stopSSEWorkers();
   }
 
   void start(const std::string& host, uint16_t port);
+  void shutdown();
 
  private:
   void registerRoutes();
+  void stopSSEWorkers();
 
   ConfigManager& configManager_;
   SortingController& sortingController_;

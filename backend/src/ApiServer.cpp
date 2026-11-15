@@ -355,3 +355,29 @@ void ApiServer::registerRoutes() {
 void ApiServer::start(const std::string& host, uint16_t port) {
   drogon::app().addListener(host, port).run();
 }
+
+void ApiServer::stopSSEWorkers() {
+  std::vector<std::unique_ptr<WorkerRecord>> workers;
+
+  {
+    std::lock_guard<std::mutex> lock(workerMutex_);
+    shuttingDown_.store(true);
+
+    for (const auto& worker : workers_) {
+      worker->stopRequested.store(true);
+    }
+
+    workers.swap(workers_);
+  }
+
+  for (const auto& worker : workers) {
+    if (worker->thread.joinable()) {
+      worker->thread.join();
+    }
+  }
+}
+
+void ApiServer::shutdown() {
+  stopSSEWorkers();
+  drogon::app().quit();
+}

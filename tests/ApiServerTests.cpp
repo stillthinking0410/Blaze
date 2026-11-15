@@ -59,9 +59,8 @@ class ApiServerTest : public ::testing::Test {
     // the fake sorting operation running.
     holdSorting.store(false);
 
-    drogon::app().quit();
-
     if (serverThread.joinable()) {
+      server->shutdown();
       serverThread.join();
     }
 

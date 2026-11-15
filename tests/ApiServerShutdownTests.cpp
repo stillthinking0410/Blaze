@@ -66,7 +66,7 @@ class ApiServerShutdownTest : public ::testing::Test {
       ::close(socketFd);
     }
     if (serverThread.joinable()) {
-      drogon::app().quit();
+      server->shutdown();
       serverThread.join();
     }
     server.reset();
@@ -142,7 +142,7 @@ TEST_F(ApiServerShutdownTest, ShutdownWithActiveProgressStream) {
   ASSERT_EQ(response.find("\r\n0\r\n\r\n"), std::string::npos);
   ASSERT_EQ(sortingController->getStatus(), SortingStatus::Running);
 
-  drogon::app().quit();
+  server->shutdown();
   serverThread.join();
   server.reset();
   EXPECT_EQ(sortingController->getStatus(), SortingStatus::Running);
