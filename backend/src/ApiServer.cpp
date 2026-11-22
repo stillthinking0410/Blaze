@@ -226,6 +226,9 @@ void ApiServer::registerRoutes() {
                   try {
                     workerRecord->thread = std::thread(
                         [this, workerRecord](drogon::ResponseStreamPtr stream) {
+                          Json::StreamWriterBuilder streamWriter;
+                          streamWriter["indentation"] = "";
+
                           try {
                             while (!workerRecord->stopRequested.load()) {
                               const ProgressInfo progress = sortingController_.getProgress();
@@ -247,8 +250,7 @@ void ApiServer::registerRoutes() {
                               json["percentage"] = progress.percentage();
 
                               const std::string data =
-                                  "data: " + Json::writeString(Json::StreamWriterBuilder(), json) +
-                                  "\n\n";
+                                  "data: " + Json::writeString(streamWriter, json) + "\n\n";
 
                               if (!stream->send(data)) {
                                 break;

@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <thread>
 
 #include "ApiServer.hpp"
@@ -545,8 +546,22 @@ TEST_F(ApiServerTest, SortingProgressStreamClosesWhenSortingCompletes) {
   EXPECT_EQ(result.second->getHeader("Content-Type"), "text/event-stream");
 
   const std::string_view body = result.second->getBody();
+  const std::size_t dataMarker = body.find("data: ");
+  ASSERT_NE(dataMarker, std::string::npos);
 
-  EXPECT_NE(body.find("data:"), std::string::npos);
+  const std::size_t payloadStart = dataMarker + std::string("data: ").size();
+  const std::size_t payloadEnd = body.find("\n\n", payloadStart);
+  ASSERT_NE(payloadEnd, std::string::npos);
+
+  const std::string_view payload = body.substr(payloadStart, payloadEnd - payloadStart);
+  EXPECT_EQ(payload.find('\n'), std::string::npos);
+
+  Json::CharReaderBuilder readerBuilder;
+  Json::Value progress;
+  std::string errors;
+  std::istringstream payloadStream{std::string(payload)};
+  ASSERT_TRUE(Json::parseFromStream(readerBuilder, payloadStream, &progress, &errors)) << errors;
+  EXPECT_TRUE(progress.isObject());
 }
 
 TEST_F(ApiServerTest, CancelSortingReturnsCancelling) {

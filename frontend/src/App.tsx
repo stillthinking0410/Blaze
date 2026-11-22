@@ -24,6 +24,13 @@ type SortingStatus =
   | "failed"
   | "cancelled";
 
+const terminalStatuses = new Set<SortingStatus>([
+  "completed",
+  "completed_with_errors",
+  "failed",
+  "cancelled",
+]);
+
 const initialProgress: SortingProgress = {
   totalFiles: 0,
   processedFiles: 0,
@@ -202,6 +209,14 @@ function App() {
 
       const result: { status: SortingStatus } = await response.json();
       setStatus(result.status);
+
+      if (!terminalStatuses.has(result.status)) return;
+
+      const progressResponse = await fetch("/api/sorting/progress");
+      if (!progressResponse.ok) return;
+
+      const finalProgress: SortingProgress = await progressResponse.json();
+      setProgress(finalProgress);
     } catch {
       // The SSE connection or initial API load will report connection issues.
     }
@@ -236,24 +251,12 @@ function App() {
 
     let timer: number | undefined;
 
-    const checkStatus = async () => {
-      try {
-        const response = await fetch("/api/sorting/status");
-        if (!response.ok) return;
-
-        const result: { status: SortingStatus } = await response.json();
-        setStatus(result.status);
-      } catch {
-        // Preserve the last known state during temporary connection failures.
-      }
-    };
-
-    timer = window.setInterval(() => void checkStatus(), 1500);
+    timer = window.setInterval(() => void refreshStatus(), 1500);
 
     return () => {
       if (timer !== undefined) window.clearInterval(timer);
     };
-  }, [isActive]);
+  }, [isActive, refreshStatus]);
 
   const statusLabel: Record<SortingStatus, string> = {
     idle: "Ready to organize",
